@@ -1,0 +1,2 @@
+LIBS=../../libcrypto
+SOURCE[../../libcrypto]=sm9_lib.c sm9_err.c sm9_sign.c sm9_enc.c
