@@ -1,5 +1,9 @@
 # GmSSL
 
+GmSSL is a branch of OpenSSL which support Chinese SM2/SM3/SM4/SM9 crypto
+standards.
+
+
 GmSSL [(http://gmssl.org)](http://gmssl.org) 是支持国密算法和标准的OpenSSL分支，是一个提供了丰富密码学功能和安全功能的开源软件包。在保持OpenSSL原有功能并实现和OpenSSL API兼容的基础上，GmSSL新增多种密码算法、标准和协议，其中包括：
 
 * 椭圆曲线公钥加密国际标准ECIES
