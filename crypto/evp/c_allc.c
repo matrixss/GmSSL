@@ -217,4 +217,18 @@ void openssl_add_all_ciphers_int(void)
     EVP_add_cipher(EVP_chacha20_poly1305());
 # endif
 #endif
+
+#ifndef NO_GMSSL
+    EVP_add_cipher(EVP_sms4_ecb());
+    EVP_add_cipher(EVP_sms4_cbc());
+    EVP_add_cipher(EVP_sms4_cfb());
+    EVP_add_cipher(EVP_sms4_cfb1());
+    EVP_add_cipher(EVP_sms4_cfb8());
+    EVP_add_cipher(EVP_sms4_ofb());
+    EVP_add_cipher(EVP_sms4_ctr());
+    EVP_add_cipher(EVP_sms4_wrap());
+    EVP_add_cipher_alias(SN_sms4_cbc,"SMS4");
+    EVP_add_cipher_alias(SN_sms4_cbc,"sms4");
+    EVP_add_cipher(EVP_zuc());
+#endif
 }

@@ -1,3 +1,51 @@
+/* ====================================================================
+ * Copyright (c) 2014 - 2016 The GmSSL Project.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *
+ * 3. All advertising materials mentioning features or use of this
+ *    software must display the following acknowledgment:
+ *    "This product includes software developed by the GmSSL Project.
+ *    (http://gmssl.org/)"
+ *
+ * 4. The name "GmSSL Project" must not be used to endorse or promote
+ *    products derived from this software without prior written
+ *    permission. For written permission, please contact
+ *    guanzhi1980@gmail.com.
+ *
+ * 5. Products derived from this software may not be called "GmSSL"
+ *    nor may "GmSSL" appear in their names without prior written
+ *    permission of the GmSSL Project.
+ *
+ * 6. Redistributions of any form whatsoever must retain the following
+ *    acknowledgment:
+ *    "This product includes software developed by the GmSSL Project
+ *    (http://gmssl.org/)"
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE GmSSL PROJECT ``AS IS'' AND ANY
+ * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE GmSSL PROJECT OR
+ * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+ * OF THE POSSIBILITY OF SUCH DAMAGE.
+ * ====================================================================
+ */
 /*
  * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
  *
@@ -52,6 +100,9 @@
 # define EVP_PKEY_CMAC   NID_cmac
 # define EVP_PKEY_TLS1_PRF NID_tls1_prf
 # define EVP_PKEY_HKDF   NID_hkdf
+# ifndef NO_GMSSL
+# define EVP_PKEY_CBCMAC NID_cbc_mac
+# endif
 
 #ifdef  __cplusplus
 extern "C" {
@@ -836,6 +887,31 @@ const EVP_CIPHER *EVP_seed_cbc(void);
 const EVP_CIPHER *EVP_seed_cfb128(void);
 #  define EVP_seed_cfb EVP_seed_cfb128
 const EVP_CIPHER *EVP_seed_ofb(void);
+# endif
+
+# ifndef NO_GMSSL
+const EVP_MD *EVP_sm3(void);
+const EVP_CIPHER *EVP_sms4_ecb(void);
+const EVP_CIPHER *EVP_sms4_cbc(void);
+const EVP_CIPHER *EVP_sms4_cfb1(void);
+const EVP_CIPHER *EVP_sms4_cfb8(void);
+const EVP_CIPHER *EVP_sms4_cfb128(void);
+# define EVP_sms4_cfb EVP_sms4_cfb128
+const EVP_CIPHER *EVP_sms4_ofb(void);
+const EVP_CIPHER *EVP_sms4_ctr(void);
+const EVP_CIPHER *EVP_sms4_ccm(void);
+const EVP_CIPHER *EVP_sms4_gcm(void);
+const EVP_CIPHER *EVP_sms4_xts(void);
+const EVP_CIPHER *EVP_sms4_wrap(void);
+const EVP_CIPHER *EVP_sms4_ffx(void);
+# define EVP_sm4_ecb EVP_sms4_ecb
+# define EVP_sm4_cbc EVP_sms4_cbc
+# define EVP_sm4_cfb EVP_sms4_cfb
+# define EVP_sm4_ofb EVP_sms4_ofb
+const EVP_CIPHER *EVP_zuc(void);
+const EVP_CIPHER *EVP_aes_128_ffx(void);
+const EVP_CIPHER *EVP_aes_192_ffx(void);
+const EVP_CIPHER *EVP_aes_256_ffx(void);
 # endif
 
 # if OPENSSL_API_COMPAT < 0x10100000L

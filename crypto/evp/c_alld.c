@@ -46,4 +46,7 @@ void openssl_add_all_digests_int(void)
     EVP_add_digest(EVP_blake2b512());
     EVP_add_digest(EVP_blake2s256());
 #endif
+#ifndef NO_GMSSL
+    EVP_add_digest(EVP_sm3());
+#endif
 }

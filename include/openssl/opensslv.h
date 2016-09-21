@@ -41,9 +41,9 @@ extern "C" {
  */
 # define OPENSSL_VERSION_NUMBER  0x1010000fL
 # ifdef OPENSSL_FIPS
-#  define OPENSSL_VERSION_TEXT    "OpenSSL 1.1.0-fips  25 Aug 2016"
+#  define OPENSSL_VERSION_TEXT    "GmSSL 2.0 based on OpenSSL 1.1.0-fips  25 Aug 2016"
 # else
-#  define OPENSSL_VERSION_TEXT    "OpenSSL 1.1.0  25 Aug 2016"
+#  define OPENSSL_VERSION_TEXT    "GmSSL 2.0 based on OpenSSL 1.1.0  25 Aug 2016"
 # endif
 
 /*-

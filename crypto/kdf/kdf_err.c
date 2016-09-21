@@ -19,13 +19,20 @@
 # define ERR_REASON(reason) ERR_PACK(ERR_LIB_KDF,0,reason)
 
 static ERR_STRING_DATA KDF_str_functs[] = {
+    {ERR_FUNC(KDF_F_IBCS_KDF), "ibcs_kdf"},
+    {ERR_FUNC(KDF_F_OTP_GENERATE), "OTP_generate"},
     {ERR_FUNC(KDF_F_PKEY_TLS1_PRF_CTRL_STR), "pkey_tls1_prf_ctrl_str"},
     {ERR_FUNC(KDF_F_PKEY_TLS1_PRF_DERIVE), "pkey_tls1_prf_derive"},
+    {ERR_FUNC(KDF_F_X963_KDF), "x963_kdf"},
     {0, NULL}
 };
 
 static ERR_STRING_DATA KDF_str_reasons[] = {
+    {ERR_REASON(KDF_R_CBCMAC_FAILURE), "cbcmac failure"},
+    {ERR_REASON(KDF_R_DIGEST_FAILURE), "digest failure"},
     {ERR_REASON(KDF_R_INVALID_DIGEST), "invalid digest"},
+    {ERR_REASON(KDF_R_INVALID_PARAMS), "invalid params"},
+    {ERR_REASON(KDF_R_MALLOC_FAILED), "malloc failed"},
     {ERR_REASON(KDF_R_MISSING_PARAMETER), "missing parameter"},
     {ERR_REASON(KDF_R_VALUE_MISSING), "value missing"},
     {0, NULL}
