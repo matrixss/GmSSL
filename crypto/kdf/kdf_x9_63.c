@@ -52,9 +52,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
-
-#ifndef NO_GMSSL
-
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/kdf.h>
@@ -181,5 +178,3 @@ KDF_FUNC KDF_get_x9_63(const EVP_MD *md)
 
 	return NULL;
 }
-
-#endif

@@ -318,7 +318,7 @@ ECIES_CIPHERTEXT_VALUE *ECIES_do_encrypt(const ECIES_PARAMS *param,
 	}
 
 	/* generate mac */
-	if (cmac_cipher) {
+	if (mac_cipher) {
 		CMAC_CTX *cmac_ctx;
 		if (!(cmac_ctx = CMAC_CTX_new())) {
 			ECerr(EC_F_ECIES_DO_ENCRYPT, ERR_R_MALLOC_FAILURE);
@@ -375,45 +375,24 @@ int ECIES_do_decrypt(const ECIES_PARAMS *param, const ECIES_CIPHERTEXT_VALUE *in
 	unsigned char *out, size_t *outlen, EC_KEY *ec_key)
 {
 	int ret = 0;
-	KDF_FUNC kdf_func;
-	const EVP_CIPHER *enc_cipher = NULL;
-	unsigned int enckeylen, ciphertextlen;
-	const EVP_CIPHER *mac_cipher = NULL;
-	unsigned int mackeylen, maclen;
-	const EC_GROUP *group = EC_KEY_get0_group(ec_key);
 	EC_POINT *ephem_point = NULL;
 	unsigned char *sharekey = NULL;
-	unsigned int sharekeylen;
 	unsigned char *enckey, *mackey;
-	unsigned char mac[EVP_MAX_MD_SIZE];
-	size_t len;
+	int sharelen, enckeylen, mackeylen, len;
+	const EC_GROUP *group = EC_KEY_get0_group(ec_key);
 
-	if (!param || !in || !outlen || !ec_key || !group) {
-		ECerr(EC_F_ECIES_DO_DECRYPT, ERR_R_PASSED_NULL_PARAMETER);
+	if (!param || !in || !outlen || !ec_key) {
+		ECerr(EC_F_ECIES_DO_DECRYPT, ERR_R_PASSED_INVALID_ARGUMENT);
 		return 0;
 	}
 
 	if (!out) {
-		*outlen = in->ciphertext->length;
+		*outlen = cv->ciphertext->length;
 		return 1;
 	}
-	if (*outlen < in->ciphertext->length) {
+	if (*outlen < cv->ciphertext->length) {
 		ECerr(EC_F_ECIES_DO_DECRYPT, EC_R_BUFFER_TOO_SMALL);
 		return 0;
-	}
-
-	/* parse parameters */
-	if (!(kdf_func = ECIES_PARAMS_get_kdf(param))) {
-		ECerr(EC_F_ECIES_DO_DECRYPT, EC_R_INVALID_ECIES_PARAMETERS);
-		goto end;
-	}
-	if (!ECIES_PARAMS_get_enc(param, inlen, &enc_cipher, &enckeylen, &ciphertextlen)) {
-		ECerr(EC_F_ECIES_DO_DECRYPT, EC_R_INVALID_ECIES_PARAMETERS);
-		goto end;
-	}
-	if (!ECIES_PARAMS_get_mac(param, &mac_cipher, &mackeylen, &maclen)) {
-		ECerr(EC_F_ECIES_DO_DECRYPT, EC_R_INVALID_ECIES_PARAMETERS);
-		goto end;
 	}
 
 	/* parse ephem_point */
@@ -432,59 +411,61 @@ int ECIES_do_decrypt(const ECIES_PARAMS *param, const ECIES_CIPHERTEXT_VALUE *in
 	}
 
 	/* compute ecdh, get enckey and mackey */
+
 	sharekeylen = enckeylen + mackeylen;
 	if (!(sharekey = OPENSSL_malloc(sharekeylen))) {
 		ECerr(EC_F_ECIES_DO_DECRYPT, ERR_R_MALLOC_FAILURE);
 		goto end;
 	}
-	if (!ECDH_compute_key(sharekey, sharekeylen,
-		ephem_point, ec_key, kdf_func)) {
+	if (!(kdf_func = ECIES_PARAMS_get_kdf(param))) {
+		ECerr(EC_F_ECIES_DO_DECRYPT, EC_R_INVALID_ECIES_PARAMETERS);
+		goto end;
+	}
+	if (!ECDH_compute_key(sharekey, sharekeylen, ephem_point, ec_key, kdf_func)) {
 		ECerr(EC_F_ECIES_DO_DECRYPT, EC_R_ECDH_FAILURE);
 		goto end;
 	}
 	enckey = sharekey;
 	mackey = sharekey + enckeylen;
 
-	/* generate and verify mac */
+	/*
+	 * generate and verify mac
+	 */
+
 	if (!in->mactag || !in->mactag->data) {
 		ECerr(EC_F_ECIES_DO_DECRYPT, EC_R_INVALID_ECIES_CIPHERTEXT);
 		goto end;
 	}
 
-	if (mac_cipher) {
+	if (param->hmac_md) {
+		if (!HMAC(param->hmac_md, mackey, mackeylen,
+			in->ciphertext->data, in->ciphertext->length,
+			mac, &maclen)) {
+			ECerr(EC_F_ECIES_DO_DECRYPT, EC_R_GEN_MAC_FAILED);
+			goto end;
+		}
+	} else {
 		CMAC_CTX *cmac_ctx;
 		if (!(cmac_ctx = CMAC_CTX_new())) {
-			ECerr(EC_F_ECIES_DO_DECRYPT, ERR_R_MALLOC_FAILURE);
+			ECerr(EC_F_ECIES_DO_ENCRYPT, ERR_R_MALLOC_FAILURE);
 			goto end;
 		}
 		if (!CMAC_Init(cmac_ctx, mackey, mackeylen, cmac_cipher, NULL);
-			ECerr(EC_F_ECIES_DO_DECRYPT, EC_R_CMAC_INIT_FAILURE);
+			ECerr(EC_F_ECIES_DO_ENCRYPT, EC_R_CMAC_INIT_FAILURE);
 			CMAC_CTX_free(cmac_ctx);
 			goto end;
 		}
 		if (!CMAC_Update(cmac_ctx, in->ciphertext->data, in->ciphertext->length)) {
-			ECerr(EC_F_ECIES_DO_DECRYPT, EC_R_CMAC_UPDATE_FAILURE);
+			ECerr(EC_F_ECIES_DO_ENCRYPT, EC_R_CMAC_UPDATE_FAILURE);
 			CMAC_CTX_free(cmac_ctx);
 			goto end;
 		}
-		len = sizeof(mac);
-		if (!CMAC_Final(cmac_ctx, mac, &len)) {
-			ECerr(EC_F_ECIES_DO_DECRYPT, EC_R_CMAC_FINAL_FAILURE);
+		if (!CMAC_Final(cmac_ctx, mac, &maclen)) {
+			ECerr(EC_F_ECIES_DO_ENCRYPT, EC_R_CMAC_FINAL_FAILURE);
 			CMAC_CTX_free(cmac_ctx);
 			goto end;
 		}
-		OPENSSL_assert(len == maclen);
 		CMAC_CTX_free(cmac_ctx);
-
-	} else {
-		len = sizeof(mac);
-		if (!HMAC(param->hmac_md, mackey, mackeylen,
-			in->ciphertext->data, in->ciphertext->length,
-			mac, &len)) {
-			ECerr(EC_F_ECIES_DO_DECRYPT, EC_R_GEN_MAC_FAILED);
-			goto end;
-		}
-		OPENSSL_assert(len == maclen || len/2 == maclen);
 	}
 
 	if (maclen != in->mactag->length) {
@@ -497,11 +478,20 @@ int ECIES_do_decrypt(const ECIES_PARAMS *param, const ECIES_CIPHERTEXT_VALUE *in
 	}
 
 	/* decrypt */
-	if (enc_cipher) {
-		EVP_CIPEHR_CTX *cipher_ctx = NULL;
+
+	if (param->enc_nid == NID_xor_in_ecies) {
+		unsigned int i;
+		for (i = 0; i < in->ciphertext->length; i++) {
+			out[i] = in->ciphertext->data[i] ^ enckey[i];
+		}
+		/* set final output length */
+		*outlen = in->ciphertext->length;
+
+	} else {
+		unsigned int ivlen, inlen, len;
 		unsigned char ivbuf[EVP_MAX_IV_LENGTH];
 		unsigned char *iv, *pin, *pout;
-		unsigned int ivlen, inlen, len;
+		EVP_CIPEHR_CTX *cipher_ctx = NULL;
 
 		/* prepare iv */
 		ivlen = EVP_CIPHER_iv_length(enc_cipher);
@@ -513,6 +503,7 @@ int ECIES_do_decrypt(const ECIES_PARAMS *param, const ECIES_CIPHERTEXT_VALUE *in
 				goto end;
 			}
 			inlen = in->ciphertext->length - ivlen;
+
 		} else {
 			/* use fixed all-zero iv */
 			memset(ivbuf, 0, ivlen);
@@ -538,34 +529,33 @@ int ECIES_do_decrypt(const ECIES_PARAMS *param, const ECIES_CIPHERTEXT_VALUE *in
 		}
 		pout = out;
 		len = (unsigned int)*outlen; //FIXME: do we need to check it?
+
 		if (!EVP_DecryptUpdate(cipher_ctx, pout, &len, pin, inlen)) {
 			ECerr(EC_F_ECIES_DO_DECRYPT, EC_R_DECRYPT_FAILED);
 			EVP_CIPHER_CTX_free(cipher_ctx);
 			goto end;
 		}
 		pout += len;
+
 		if (!EVP_DecryptFinal(cipher_ctx, pout, &len)) {
 			ECerr(EC_F_ECIES_DO_DECRYPT, EC_R_DECRYPT_FAILED);
 			EVP_CIPHER_CTX_free(cipher_ctx);
 			goto end;
 		}
 		pout += len;
-		EVP_CIPHER_CTX_free(cipher_ctx);
-		*outlen = pout - out;
 
-	} else {
-		unsigned int i;
-		for (i = 0; i < in->ciphertext->length; i++) {
-			out[i] = in->ciphertext->data[i] ^ enckey[i];
-		}
-		*outlen = in->ciphertext->length;
+		EVP_CIPHER_CTX_free(cipher_ctx);
+		/* set final output lenght */
+		*outlen = pout - out;
 	}
 
-	ret = 1;
-end:
-	OPENSSL_free(sharekey);
-	EC_POINT_free(ephem_point);
-	return ret;
+	r = 1;
+err:
+	if (share) OPENSSL_free(share);
+	EVP_CIPHER_CTX_cleanup(&ctx);
+	if (ephem_point) EC_POINT_free(ephem_point);
+
+	return r;
 }
 
 int ECIES_encrypt(const ECIES_PARAMS *param,

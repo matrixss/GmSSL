@@ -1,4 +1,3 @@
-/* crypto/ec/ecies_lcl.c */
 /* ====================================================================
  * Copyright (c) 2007 - 2016 The GmSSL Project.  All rights reserved.
  *
@@ -49,16 +48,47 @@
  */
 
 #include <openssl/asn1.h>
+#include <openssl/asn1t.h>
+#include <openssl/cpk.h>
 
-struct ECIESParameters_st {
-	ASN1_OBJECT *kdf;
-	ASN1_OBJECT *enc;
-	ASN1_OBJECT *mac;
-};
+ASN1_SEQUENCE(CPK_MASTER_SECRET) = {
+	ASN1_SIMPLE(CPK_MASTER_SECRET, version, LONG),
+	ASN1_SIMPLE(CPK_MASTER_SECRET, id, X509_NAME),
+	ASN1_SIMPLE(CPK_MASTER_SECRET, pkey_algor, X509_ALGOR),
+	ASN1_SIMPLE(CPK_MASTER_SECRET, map_algor, X509_ALGOR),
+	ASN1_SIMPLE(CPK_MASTER_SECRET, secret_factors, ASN1_OCTET_STRING)
+} ASN1_SEQUENCE_END(CPK_MASTER_SECRET)
+IMPLEMENT_ASN1_FUNCTIONS(CPK_MASTER_SECRET)
+IMPLEMENT_ASN1_DUP_FUNCTION(CPK_MASTER_SECRET)
 
-struct ECIESCiphertext_st {
-	ASN1_OCTET_STRING *ephem_point;
-	ASN1_OCTET_STRING *ciphertext;
-	ASN1_OCTET_STRING *mactag;
-};
+ASN1_SEQUENCE(CPK_PUBLIC_PARAMS) = {
+	ASN1_SIMPLE(CPK_PUBLIC_PARAMS, version, LONG),
+	ASN1_SIMPLE(CPK_PUBLIC_PARAMS, id, X509_NAME),
+	ASN1_SIMPLE(CPK_PUBLIC_PARAMS, pkey_algor, X509_ALGOR),
+	ASN1_SIMPLE(CPK_PUBLIC_PARAMS, map_algor, X509_ALGOR),
+	ASN1_SIMPLE(CPK_PUBLIC_PARAMS, public_factors, ASN1_OCTET_STRING)
+} ASN1_SEQUENCE_END(CPK_PUBLIC_PARAMS)
+IMPLEMENT_ASN1_FUNCTIONS(CPK_PUBLIC_PARAMS)
+IMPLEMENT_ASN1_DUP_FUNCTION(CPK_PUBLIC_PARAMS)
+
+
+CPK_MASTER_SECRET *d2i_CPK_MASTER_SECRET_bio(BIO *bp, CPK_MASTER_SECRET **master)
+{
+	return ASN1_item_d2i_bio(ASN1_ITEM_rptr(CPK_MASTER_SECRET), bp, master);
+}
+
+int i2d_CPK_MASTER_SECRET_bio(BIO *bp, CPK_MASTER_SECRET *master)
+{
+	return ASN1_item_i2d_bio(ASN1_ITEM_rptr(CPK_MASTER_SECRET), bp, master);
+}
+
+CPK_PUBLIC_PARAMS *d2i_CPK_PUBLIC_PARAMS_bio(BIO *bp, CPK_PUBLIC_PARAMS **params)
+{
+	return ASN1_item_d2i_bio(ASN1_ITEM_rptr(CPK_PUBLIC_PARAMS), bp, params);
+}
+
+int i2d_CPK_PUBLIC_PARAMS_bio(BIO *bp, CPK_PUBLIC_PARAMS *params)
+{
+	return ASN1_item_i2d_bio(ASN1_ITEM_rptr(CPK_PUBLIC_PARAMS), bp, params);
+}
 

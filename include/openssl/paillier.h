@@ -1,5 +1,5 @@
 /* ====================================================================
- * Copyright (c) 2016 The GmSSL Project.  All rights reserved.
+ * Copyright (c) 2015 - 2016 The GmSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -47,12 +47,11 @@
  * ====================================================================
  */
 
-#ifndef HEADER_SM9_H
-#define HEADER_SM9_H
+#ifndef HEADER_PAILLIER_H
+#define HEADER_PAILLIER_H
+#ifndef NO_GMSSL
 
 #include <openssl/bn.h>
-#include <openssl/ec.h>
-#include <openssl/evp.h>
 #include <openssl/asn1.h>
 
 #ifdef __cplusplus
@@ -60,58 +59,27 @@ extern "C" {
 #endif
 
 
-typedef SM9PublicParameters_st SM9PublicParameters;
-typedef SM9MasterSecret_st SM9MasterSecret;
-typedef SM9PrivateKey_st SM9PrivateKey;
-typedef SM9Ciphertext_st SM9Ciphertext;
+typedef struct paillier_st {
+	int bits;
+	BIGNUM *n;		/* public key */
+	BIGNUM *lambda;		/* private key, lambda(n) = lcm(p-1, q-1) */
+	BIGNUM *n_squared;	/* online */
+	BIGNUM *n_plusone;	/* online */
+	BIGNUM *x;		/* online */
+} PAILLIER;
 
-typedef struct SM9Signature_st {
-	BIGNUM *h;
-	ASN1_OCTET_STRING *s;
-} SM9Signature;
-DECLARE_ASN1_FUNCTIONS(SM9Signature)
+PAILLIER *PAILLIER_new(void);
+void PAILLIER_free(PAILLIER *key);
 
+int PAILLIER_generate_key(PAILLIER *key, int bits);
+int PAILLIER_check_key(PAILLIER *key);
+int PAILLIER_encrypt(BIGNUM *out, const BIGNUM *in, PAILLIER *key);
+int PAILLIER_decrypt(BIGNUM *out, const BIGNUM *in, PAILLIER *key);
+int PAILLIER_ciphertext_add(BIGNUM *r, const BIGNUM *a, const BIGNUM *b, PAILLIER *key);
+int PAILLIER_ciphertext_scalar_mul(BIGNUM *r, const BIGNUM *scalar, const BIGNUM *a, PAILLIER *key);
 
-#define SM9_setup(mpk,msk,bits,md) \
-	IBCS_bf_setup(mpk,msk,bits,md)
-
-#define SM9_extract_private_key(mpk,msk,id,idlen,sk) \
-	IBCS_bf_extract_private_key(mpk,msk,id,idlen,sk)
-
-
-SM9Ciphertext *SM9_do_encrypt(SM9PublicParameters *mpk,
-	const unsigned char *in, size_t inlen, unsigned char *out,
-	size_t *outlen, const char *id, size_t idlen);
-
-int SM9_do_decrypt(SM9PublicParameters *mpk,
-	const SM9Ciphertext *in, unsigned char *out, size_t *outlen,
-	SM9PrivateKey *sk);
-
-int SM9_encrypt(SM9PublicParameters *mpk,
-	const unsigned char *in, size_t inlen, unsigned char *out,
-	size_t *outlen, const char *id, size_t idlen);
-
-int SM9_decrypt(SM9PublicParameters *mpk,
-	const unsigned char *in, size_t inlen, unsigned char *out,
-	size_t *outlen, SM9PrivateKey *sk);
-
-
-SM9Signature *SM9_do_sign(SM9PublicParameters *mpk,
-	const unsigned char *dgst, size_t dgstlen,
-	SM9PrivateKey *sk);
-
-int SM9_do_verify(SM9PublicParameters *mpk,
-	const unsigned char *dgst, size_t dgstlen,
-	const SM9Signature *sig, const char *id, size_t idlen);
-
-int SM9_sign(SM9PublicParameters *mpk, const unsigned char *dgst,
-	size_t dgstlen, unsigned char *sig, size_t *siglen,
-	SM9PrivateKey *sk);
-
-int SM9_verify(SM9PublicParameters *mpk, const unsigned char *dgst,
-	size_t dgstlen, const unsigned char *sig, size_t siglen,
-	const char *id, size_t idlen);
-
+DECLARE_ASN1_ENCODE_FUNCTIONS_const(PAILLIER, PAILLIER_PUBLIC_KEY)
+DECLARE_ASN1_ENCODE_FUNCTIONS_const(PAILLIER, PAILLIER_PRIVATE_KEY)
 
 /* BEGIN ERROR CODES */
 /*
@@ -119,24 +87,27 @@ int SM9_verify(SM9PublicParameters *mpk, const unsigned char *dgst,
  * made after this point may be overwritten when the script is next run.
  */
 
-int ERR_load_SM9_strings(void);
+int ERR_load_PAILLIER_strings(void);
 
-/* Error codes for the SM9 functions. */
+/* Error codes for the PAILLIER functions. */
 
 /* Function codes. */
-# define SM9_F_SM9_DECRYPT                                100
-# define SM9_F_SM9_DO_DECRYPT                             101
-# define SM9_F_SM9_DO_ENCRYPT                             102
-# define SM9_F_SM9_DO_SIGN                                103
-# define SM9_F_SM9_DO_VERIFY                              104
-# define SM9_F_SM9_ENCRYPT                                105
-# define SM9_F_SM9_SIGN                                   106
-# define SM9_F_SM9_VERIFY                                 107
+# define PAILLIER_F_PAILLIER_CHECK_KEY                    100
+# define PAILLIER_F_PAILLIER_CIPHERTEXT_ADD               101
+# define PAILLIER_F_PAILLIER_CIPHERTEXT_SCALAR_MUL        102
+# define PAILLIER_F_PAILLIER_DECRYPT                      103
+# define PAILLIER_F_PAILLIER_ENCRYPT                      104
+# define PAILLIER_F_PAILLIER_GENERATE_KEY                 105
+# define PAILLIER_F_PAILLIER_NEW                          106
 
 /* Reason codes. */
-# define SM9_R_NOT_IMPLEMENTED                            100
+# define PAILLIER_R_GENERATE_PRIME_FAILED                 100
+# define PAILLIER_R_INVALID_PLAINTEXT                     101
+# define PAILLIER_R_MALLOC_FAILED                         102
+# define PAILLIER_R_NOT_IMPLEMENTED                       103
 
 # ifdef  __cplusplus
 }
 # endif
+#endif
 #endif

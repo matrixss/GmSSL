@@ -93,6 +93,12 @@ typedef struct err_state_st {
 # define ERR_LIB_CT              50
 # define ERR_LIB_ASYNC           51
 # define ERR_LIB_KDF             52
+# ifndef NO_GMSSL
+# define ERR_LIB_CPK             53
+# define ERR_LIB_SM9             54
+# define ERR_LIB_GMAPI           55
+# define ERR_LIB_PAILLIER        56
+# endif
 
 # define ERR_LIB_USER            128
 
@@ -132,6 +138,12 @@ typedef struct err_state_st {
 # define CTerr(f,r) ERR_PUT_error(ERR_LIB_CT,(f),(r),OPENSSL_FILE,OPENSSL_LINE)
 # define ASYNCerr(f,r) ERR_PUT_error(ERR_LIB_ASYNC,(f),(r),OPENSSL_FILE,OPENSSL_LINE)
 # define KDFerr(f,r) ERR_PUT_error(ERR_LIB_KDF,(f),(r),OPENSSL_FILE,OPENSSL_LINE)
+# ifndef NO_GMSSL
+# define CPKerr(f,r) ERR_PUT_error(ERR_LIB_CPK,(f),(r),OPENSSL_FILE,OPENSSL_LINE)
+# define SM9err(f,r) ERR_PUT_error(ERR_LIB_SM9,(f),(r),OPENSSL_FILE,OPENSSL_LINE)
+# define GMAPIerr(f,r) ERR_PUT_error(ERR_LIB_GMAPI,(f),(r),OPENSSL_FILE,OPENSSL_LINE)
+# define PAILLIERerr(f,r) ERR_PUT_error(ERR_LIB_PAILLIER,(f),(r),OPENSSL_FILE,OPENSSL_LINE)
+# endif
 
 # define ERR_PACK(l,f,r) ( \
         (((unsigned int)(l) & 0x0FF) << 24L) | \
@@ -178,6 +190,12 @@ typedef struct err_state_st {
 # define ERR_R_X509V3_LIB ERR_LIB_X509V3/* 34 */
 # define ERR_R_ENGINE_LIB ERR_LIB_ENGINE/* 38 */
 # define ERR_R_ECDSA_LIB ERR_LIB_ECDSA/* 42 */
+# ifndef NO_GMSSL
+# define ERR_R_CPK_LIB   ERR_LIB_CPK/* 53 */
+# define ERR_R_SM9_LIB   ERR_LIB_SM9/* 54 */
+# define ERR_R_GMAPI_LIB ERR_LIB_GMAPI/* 55 */
+# define ERR_R_PAILLIER_LIB ERR_LIB_PAILLIER/* 56 */
+# endif
 
 # define ERR_R_NESTED_ASN1_ERROR                 58
 # define ERR_R_MISSING_ASN1_EOS                  63

@@ -49,36 +49,13 @@
 
 #ifndef HEADER_SDF_H
 #define HEADER_SDF_H
-#ifndef NO_GMSSL
+
+#include <openssl/sgd.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#if 0
-#define SGD_SM1_ECB		0x00000101
-#define SGD_SM1_CBC		0x00000102
-#define SGD_SM1_CFB		0x00000104
-#define SGD_SM1_OFB		0x00000108
-#define SGD_SM1_MAC		0x00000110
-#define SGD_SSF33_ECB		0x00000201
-#define SGD_SSF33_CBC		0x00000202
-#define SGD_SSF33_CFB		0x00000204
-#define SGD_SSF33_OFB		0x00000208
-#define SGD_SSF33_MAC		0x00000210
-#define SGD_SM4_ECB		0x00000401
-#define SGD_SM4_CBC		0x00000402
-#define SGD_SM4_CFB		0x00000404
-#define SGD_SM4_OFB		0x00000408
-#define SGD_SM4_MAC		0x00000410
-#define SGD_RSA			0x00010000
-#define SGD_SM2_1		0x00020100
-#define SGD_SM2_2		0x00020200
-#define SGD_SM2_3		0x00020400
-#define SGD_SM3			0x00000001
-#define SGD_SHA1		0x00000002
-#define SGD_SHA256		0x00000004
-#endif
 
 typedef struct DeviceInfo_st{
 	unsigned char IssuerName[40];
@@ -535,6 +512,5 @@ int SDF_DeleteFile(
 
 #ifdef __cplusplus
 }
-#endif
 #endif
 #endif

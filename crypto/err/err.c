@@ -58,6 +58,12 @@ static ERR_STRING_DATA ERR_str_libraries[] = {
     {ERR_PACK(ERR_LIB_CT, 0, 0), "CT routines"},
     {ERR_PACK(ERR_LIB_ASYNC, 0, 0), "ASYNC routines"},
     {ERR_PACK(ERR_LIB_KDF, 0, 0), "KDF routines"},
+#ifndef NO_GMSSL
+    {ERR_PACK(ERR_LIB_CPK, 0, 0), "CPK routines"},
+    {ERR_PACK(ERR_LIB_SM9, 0, 0), "SM9 routines"},
+    {ERR_PACK(ERR_LIB_GMAPI, 0, 0), "GMAPI routines"},
+    {ERR_PACK(ERR_LIB_PAILLIER, 0, 0), "PAILLIER routines"},
+#endif
     {0, NULL},
 };
 
