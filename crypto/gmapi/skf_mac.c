@@ -53,8 +53,8 @@
 #include <openssl/sms4.h>
 #include <openssl/cbcmac.h>
 #include <openssl/skf.h>
-#include <openssl/skf_ex.h>
-#include "skf_lcl.h"
+#include <openssl/gmapi.h>
+#include "gmapi_lcl.h"
 
 
 ULONG DEVAPI SKF_MacInit(HANDLE hKey,
@@ -66,35 +66,35 @@ ULONG DEVAPI SKF_MacInit(HANDLE hKey,
 	const EVP_CIPHER *cipher;
 
 	if (!(key = (SKF_HANDLE *)hKey)) {
-		SKFerr(SKF_F_SKF_MACINIT, SKF_R_NULL_ARGUMENT);
+		GMAPIerr(GMAPI_F_SKF_MACINIT, GMAPI_R_NULL_ARGUMENT);
 		return SAR_INVALIDPARAMERR;
 	}
 
 	//TODO: check pMacParam
 
 	if (key->magic != SKF_HANDLE_MAGIC) {
-		SKFerr(SKF_F_SKF_MACINIT, SKF_R_INVALID_HANDLE_MAGIC);
+		GMAPIerr(GMAPI_F_SKF_MACINIT, GMAPI_R_INVALID_HANDLE_MAGIC);
 		return SAR_INVALIDPARAMERR;
 	}
 
 	if (key->type < SKF_KEY_HANDLE) {
-		SKFerr(SKF_F_SKF_MACINIT, SKF_R_INVALID_KEY_HANDLE);
+		GMAPIerr(GMAPI_F_SKF_MACINIT, GMAPI_R_INVALID_KEY_HANDLE);
 		return SAR_INVALIDPARAMERR;
 	}
 
 	if (key->algid != SGD_SM4_MAC) {
-		SKFerr(SKF_F_SKF_MACINIT, SKF_R_INVALID_ALGOR);
+		GMAPIerr(GMAPI_F_SKF_MACINIT, GMAPI_R_INVALID_ALGOR);
 		return SAR_INVALIDPARAMERR;
 	}
 	cipher = EVP_sms4_ecb();
 
 	if (key->keylen < SMS4_KEY_LENGTH) {
-		SKFerr(SKF_F_SKF_MACINIT, SKF_R_INVALID_KEY_LENGTH);
+		GMAPIerr(GMAPI_F_SKF_MACINIT, GMAPI_R_INVALID_KEY_LENGTH);
 		return SAR_INVALIDPARAMERR;
 	}
 
 	if (!(hMac = OPENSSL_malloc(sizeof(*hMac)))) {
-		SKFerr(SKF_F_SKF_MACINIT, SKF_R_FAIL);
+		GMAPIerr(GMAPI_F_SKF_MACINIT, GMAPI_R_FAIL);
 		return SAR_FAIL;
 	}
 
@@ -103,12 +103,12 @@ ULONG DEVAPI SKF_MacInit(HANDLE hKey,
 	hMac->algid = key->algid;
 
 	if (!(hMac->u.cbcmac_ctx = CBCMAC_CTX_new())) {
-		SKFerr(SKF_F_SKF_MACINIT, ERR_R_CBCMAC_LIB);
+		GMAPIerr(GMAPI_F_SKF_MACINIT, ERR_R_GMAPI_LIB);
 		goto end;
 	}
 
 	if (!CBCMAC_Init(hMac->u.cbcmac_ctx, key->key, key->keylen, cipher, NULL)) {
-		SKFerr(SKF_F_SKF_MACINIT, ERR_R_CBCMAC_LIB);
+		GMAPIerr(GMAPI_F_SKF_MACINIT, ERR_R_GMAPI_LIB);
 		return SAR_FAIL;
 	}
 
@@ -124,12 +124,12 @@ ULONG DEVAPI SKF_MacUpdate(HANDLE hMac,
 	CBCMAC_CTX *ctx;
 
 	if (!(ctx = SKF_HANDLE_get_cbcmac_ctx(hMac))) {
-		SKFerr(SKF_F_SKF_MACUPDATE, SKF_R_INVALID_MAC_HANDLE);
+		GMAPIerr(GMAPI_F_SKF_MACUPDATE, GMAPI_R_INVALID_MAC_HANDLE);
 		return SAR_INVALIDPARAMERR;
 	}
 
 	if (!CBCMAC_Update(ctx, pbData, ulDataLen)) {
-		SKFerr(SKF_F_SKF_MACUPDATE, ERR_R_CBCMAC_LIB);
+		GMAPIerr(GMAPI_F_SKF_MACUPDATE, ERR_R_GMAPI_LIB);
 		return SAR_FAIL;
 	}
 
@@ -144,13 +144,13 @@ ULONG DEVAPI SKF_MacFinal(HANDLE hMac,
 	size_t size;
 
 	if (!(ctx = SKF_HANDLE_get_cbcmac_ctx(hMac))) {
-		SKFerr(SKF_F_SKF_MACFINAL, SKF_R_INVALID_MAC_HANDLE);
+		GMAPIerr(GMAPI_F_SKF_MACFINAL, GMAPI_R_INVALID_MAC_HANDLE);
 		return SAR_INVALIDPARAMERR;
 	}
 
 	size = *pulMacDataLen;
 	if (!CBCMAC_Final(ctx, pbMacData, &size)) {
-		SKFerr(SKF_F_SKF_MACFINAL, ERR_R_CBCMAC_LIB);
+		GMAPIerr(GMAPI_F_SKF_MACFINAL, ERR_R_GMAPI_LIB);
 		return SAR_FAIL;
 	}
 
@@ -167,12 +167,12 @@ ULONG DEVAPI SKF_Mac(HANDLE hMac,
 	ULONG rv;
 
 	if ((rv = SKF_MacUpdate(hMac, pbData, ulDataLen)) != SAR_OK) {
-		SKFerr(SKF_F_SKF_MAC, ERR_R_SKF_LIB);
+		GMAPIerr(GMAPI_F_SKF_MAC, ERR_R_GMAPI_LIB);
 		return rv;
 	}
 
 	if ((rv = SKF_MacFinal(hMac, pbMacData, pulMacLen)) != SAR_OK) {
-		SKFerr(SKF_F_SKF_MAC, ERR_R_SKF_LIB);
+		GMAPIerr(GMAPI_F_SKF_MAC, ERR_R_GMAPI_LIB);
 		return rv;
 	}
 

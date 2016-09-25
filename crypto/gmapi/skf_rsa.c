@@ -52,8 +52,9 @@
 #include <stdio.h>
 #include <openssl/rsa.h>
 #include <openssl/skf.h>
-#include <openssl/skf_ex.h>
-#include "skf_lcl.h"
+#include <openssl/gmapi.h>
+#include "gmapi_lcl.h"
+#include "../rsa/rsa_locl.h"
 
 
 ULONG DEVAPI SKF_GenExtRSAKey(DEVHANDLE hDev,

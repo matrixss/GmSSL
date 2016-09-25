@@ -55,8 +55,10 @@
 #include <openssl/ec.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
+#include <openssl/kdf.h>
 #include <openssl/x509.h>
 #include <openssl/asn1.h>
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -127,24 +129,31 @@ typedef struct ecies_ciphertext_value_st {
 DECLARE_ASN1_FUNCTIONS(ECIES_CIPHERTEXT_VALUE)
 
 
+int ECIES_PARAMS_init_with_recommended(ECIES_PARAMS *param);
+KDF_FUNC ECIES_PARAMS_get_kdf(const ECIES_PARAMS *param);
+int ECIES_PARAMS_get_enc(const ECIES_PARAMS *param, size_t inlen,
+	const EVP_CIPHER **enc_cipher, size_t *enckeylen, size_t *ciphertextlen);
+int ECIES_PARAMS_get_mac(const ECIES_PARAMS *param,
+	const EVP_MD **hmac_md, const EVP_CIPHER **cmac_cipher,
+	unsigned int *mackeylen, unsigned int *maclen);
+
 ECIES_CIPHERTEXT_VALUE *ECIES_do_encrypt(const ECIES_PARAMS *param,
 	const unsigned char *in, size_t inlen, EC_KEY *ec_key);
-int ECIES_do_decrypt(const ECIES_CIPHERTEXT_VALUE *cv,
-	const ECIES_PARAMS *param, unsigned char *out, size_t *outlen,
-	EC_KEY *ec_key);
+int ECIES_do_decrypt(const ECIES_PARAMS *param, const ECIES_CIPHERTEXT_VALUE *in,
+	unsigned char *out, size_t *outlen, EC_KEY *ec_key);
 int ECIES_encrypt(const ECIES_PARAMS *param,
-	unsigned char *out, size_t *outlen,
 	const unsigned char *in, size_t inlen,
-	EC_KEY *ec_key);
+	unsigned char *out, size_t *outlen, EC_KEY *ec_key);
 int ECIES_decrypt(const ECIES_PARAMS *param,
-	unsigned char *out, size_t *outlen,
 	const unsigned char *in, size_t inlen,
-	EC_KEY *ec_key);
+	unsigned char *out, size_t *outlen, EC_KEY *ec_key);
+int ECIES_encrypt_with_recommended(const unsigned char *in, size_t inlen,
+	unsigned char *out, size_t *outlen, EC_KEY *ec_key);
+int ECIES_decrypt_with_recommended(const unsigned char *in, size_t inlen,
+	unsigned char *out, size_t *outlen, EC_KEY *ec_key);
 
-int ECIES_encrypt_with_recommended(unsigned char *out, size_t *outlen,
-	const unsigned char *in, size_t inlen, EC_KEY *ec_key);
-int ECIES_decrypt_with_recommended(unsigned char *out, size_t *outlen,
-	const unsigned char *in, size_t inlen, EC_KEY *ec_key);
 
-
-/* BEGIN ERROR CODES */
+#ifdef __cplusplus
+}
+#endif
+#endif

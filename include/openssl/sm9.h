@@ -59,58 +59,85 @@
 extern "C" {
 #endif
 
+/* system setup */
 
-typedef SM9PublicParameters_st SM9PublicParameters;
-typedef SM9MasterSecret_st SM9MasterSecret;
-typedef SM9PrivateKey_st SM9PrivateKey;
-typedef SM9Ciphertext_st SM9Ciphertext;
+typedef struct SM9PublicParameters_st {
+	ASN1_OBJECT *curve;
+	ASN1_OCTET_STRING *P_pub;
+} SM9PublicParameters;
+DECLARE_ASN1_FUNCTIONS(SM9PublicParameters)
 
-typedef struct SM9Signature_st {
-	BIGNUM *h;
-	ASN1_OCTET_STRING *s;
-} SM9Signature;
-DECLARE_ASN1_FUNCTIONS(SM9Signature)
+typedef struct SM9MasterSecret_st {
+	BIGNUM *ks;
+} SM9MasterSecret;
+DECLARE_ASN1_FUNCTIONS(SM9MasterSecret)
 
+int SM9_setup(int curve, SM9PublicParameters **mpk, SM9MasterSecret **msk);
 
-#define SM9_setup(mpk,msk,bits,md) \
-	IBCS_bf_setup(mpk,msk,bits,md)
+/* private key extract */
 
-#define SM9_extract_private_key(mpk,msk,id,idlen,sk) \
-	IBCS_bf_extract_private_key(mpk,msk,id,idlen,sk)
+typedef struct SM9PrivateKey_st {
+	ASN1_OCTET_STRING *ds;
+} SM9PrivateKey;
+DECLARE_ASN1_FUNCTIONS(SM9PrivateKey)
 
+SM9PrivateKey *SM9_extract_private_key(SM9PublicParameters *mpk,
+	SM9MasterSecret *msk, const char *id, size_t idlen);
+
+/* encrypt */
+
+typedef struct SM9EncapKey_st {
+	ASN1_OCTET_STRING *K;
+	ASN1_OCTET_STRING *C;
+} SM9EncapKey;
+DECLARE_ASN1_FUNCTIONS(SM9EncapKey)
+
+typedef struct SM9Ciphertext_st {
+	ASN1_OCTET_STRING *C1;
+	ASN1_OCTET_STRING *C2;
+	ASN1_OCTET_STRING *C3;
+} SM9Ciphertext;
+DECLARE_ASN1_FUNCTIONS(SM9Ciphertext)
 
 SM9Ciphertext *SM9_do_encrypt(SM9PublicParameters *mpk,
-	const unsigned char *in, size_t inlen, unsigned char *out,
-	size_t *outlen, const char *id, size_t idlen);
-
+	const unsigned char *in, size_t inlen,
+	unsigned char *out, size_t *outlen,
+	const char *id, size_t idlen);
 int SM9_do_decrypt(SM9PublicParameters *mpk,
 	const SM9Ciphertext *in, unsigned char *out, size_t *outlen,
 	SM9PrivateKey *sk);
-
 int SM9_encrypt(SM9PublicParameters *mpk,
-	const unsigned char *in, size_t inlen, unsigned char *out,
-	size_t *outlen, const char *id, size_t idlen);
-
+	const unsigned char *in, size_t inlen,
+	unsigned char *out, size_t *outlen,
+	const char *id, size_t idlen);
 int SM9_decrypt(SM9PublicParameters *mpk,
-	const unsigned char *in, size_t inlen, unsigned char *out,
-	size_t *outlen, SM9PrivateKey *sk);
+	const unsigned char *in, size_t inlen,
+	unsigned char *out, size_t *outlen,
+	SM9PrivateKey *sk);
 
+/* sign */
+
+typedef struct SM9Signature_st {
+	ASN1_OCTET_STRING *h;
+	ASN1_OCTET_STRING *S;
+} SM9Signature;
+DECLARE_ASN1_FUNCTIONS(SM9Signature)
 
 SM9Signature *SM9_do_sign(SM9PublicParameters *mpk,
 	const unsigned char *dgst, size_t dgstlen,
 	SM9PrivateKey *sk);
-
 int SM9_do_verify(SM9PublicParameters *mpk,
 	const unsigned char *dgst, size_t dgstlen,
 	const SM9Signature *sig, const char *id, size_t idlen);
-
 int SM9_sign(SM9PublicParameters *mpk, const unsigned char *dgst,
 	size_t dgstlen, unsigned char *sig, size_t *siglen,
 	SM9PrivateKey *sk);
-
 int SM9_verify(SM9PublicParameters *mpk, const unsigned char *dgst,
 	size_t dgstlen, const unsigned char *sig, size_t siglen,
 	const char *id, size_t idlen);
+
+/* key exchange */
+
 
 
 /* BEGIN ERROR CODES */

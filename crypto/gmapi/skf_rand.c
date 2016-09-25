@@ -52,8 +52,8 @@
 #include <stdio.h>
 #include <openssl/rand.h>
 #include <openssl/skf.h>
-#include <openssl/skf_ex.h>
-#include "skf_lcl.h"
+#include <openssl/gmapi.h>
+#include "gmapi_lcl.h"
 
 #define SKF_DEV_AUTH_RANDOM_LENGTH	16
 #define SKF_MAX_RANDOM_LENGTH		(1024*1024*1024)
@@ -64,17 +64,17 @@ ULONG DEVAPI SKF_GenRandom(DEVHANDLE hDev,
 	ULONG ulRandomLen)
 {
 	if (!pbRandom) {
-		SKFerr(SKF_F_SKF_GENRANDOM, SKF_R_NULL_ARGUMENT);
+		GMAPIerr(GMAPI_F_SKF_GENRANDOM, GMAPI_R_NULL_ARGUMENT);
 		return SAR_INVALIDPARAMERR;
 	}
 
 	if (ulRandomLen > SKF_MAX_RANDOM_LENGTH) {
-		SKFerr(SKF_F_SKF_GENRANDOM, SKF_R_INVALID_RANDOM_LENGTH);
+		GMAPIerr(GMAPI_F_SKF_GENRANDOM, GMAPI_R_INVALID_RANDOM_LENGTH);
 		return SAR_INVALIDPARAMERR;
 	}
 
 	if (!RAND_bytes(pbRandom, ulRandomLen)) {
-		SKFerr(SKF_F_SKF_GENRANDOM, ERR_R_RAND_LIB);
+		GMAPIerr(GMAPI_F_SKF_GENRANDOM, ERR_R_GMAPI_LIB);
 		return SAR_GENRANDERR;
 	}
 

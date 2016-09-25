@@ -51,9 +51,11 @@
 #include <stdio.h>
 #include <openssl/ec.h>
 #include <openssl/gmapi.h>
+#include <openssl/skf.h>
 #ifndef NO_GMSSL
 
-#include "skf_lcl.h"
+#include "gmapi_lcl.h"
+#include "../ec/ec_lcl.h"
 
 ULONG DEVAPI SKF_GenExtECCKeyPair(DEVHANDLE hDev,
 	ECCPRIVATEKEYBLOB *priKey,

@@ -1136,3 +1136,5 @@ type1curve		1135
 type2curve		1136
 type3curve		1137
 type4curve		1138
+tdes_cbc_in_ecies		1139
+cmac_aes256_ecies		1140

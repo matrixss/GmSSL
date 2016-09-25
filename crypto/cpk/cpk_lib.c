@@ -59,7 +59,8 @@
 #include <openssl/ecdsa.h>
 #include <openssl/objects.h>
 #include <openssl/cpk.h>
-
+#include "../dsa/dsa_locl.h"
+#include "../x509/x509_lcl.h"
 
 static DSA *X509_ALGOR_get1_DSA(X509_ALGOR *algor);
 static int extract_dsa_params(CPK_MASTER_SECRET *master, CPK_PUBLIC_PARAMS *param);
@@ -139,10 +140,15 @@ CPK_MASTER_SECRET *CPK_MASTER_SECRET_create(const char *domain_id,
 		goto err;
 	}
 	X509_ALGOR_free(master->pkey_algor);
+
+	X509_ALGOR_set0(master->pkey_algor, OBJ_nid2obj(EVP_PKEY_id(pkey)), 0, NULL);
+
+	/*
 	if (!(master->pkey_algor = X509_ALGOR_dup(pubkey->algor))) {
 		CPKerr(CPK_F_CPK_MASTER_SECRET_CREATE, ERR_R_X509_LIB);
 		goto err;
 	}
+	*/
 
 	//FIXME: check the validity of CPK_MAP
 	X509_ALGOR_free(master->map_algor);
@@ -164,8 +170,8 @@ CPK_MASTER_SECRET *CPK_MASTER_SECRET_create(const char *domain_id,
 		CPKerr(CPK_F_CPK_MASTER_SECRET_CREATE, ERR_R_ASN1_LIB);
 		goto err;
 	}
-	bn_ptr = M_ASN1_STRING_data(master->secret_factors);
-	memset(bn_ptr, 0, M_ASN1_STRING_length(master->secret_factors));
+	bn_ptr = ASN1_STRING_data(master->secret_factors);
+	memset(bn_ptr, 0, ASN1_STRING_length(master->secret_factors));
 
 	if (!(bn = BN_new())) {
 		CPKerr(CPK_F_CPK_MASTER_SECRET_CREATE, ERR_R_MALLOC_FAILURE);
@@ -175,7 +181,7 @@ CPK_MASTER_SECRET *CPK_MASTER_SECRET_create(const char *domain_id,
 		do {
 			if (!BN_rand_range(bn, order)) {
 				CPKerr(CPK_F_CPK_MASTER_SECRET_CREATE,
-					ERR_R_RAND_LIB);
+					ERR_R_BN_LIB);
 				goto err;
 			}
 		} while (BN_is_zero(bn));
@@ -377,8 +383,8 @@ err:
 int CPK_MASTER_SECRET_digest(CPK_MASTER_SECRET *master, const EVP_MD *md,
 	unsigned char *dgst, unsigned int *dgstlen)
 {
-	if (!EVP_Digest(M_ASN1_STRING_data(master->secret_factors),
-		M_ASN1_STRING_length(master->secret_factors),
+	if (!EVP_Digest(ASN1_STRING_data(master->secret_factors),
+		ASN1_STRING_length(master->secret_factors),
 		dgst, dgstlen, md, NULL)) {
 		return 0;
 	}
@@ -388,8 +394,8 @@ int CPK_MASTER_SECRET_digest(CPK_MASTER_SECRET *master, const EVP_MD *md,
 int CPK_PUBLIC_PARAMS_digest(CPK_PUBLIC_PARAMS *params, const EVP_MD *md,
 	unsigned char *dgst, unsigned int *dgstlen)
 {
-	if (!EVP_Digest(M_ASN1_STRING_data(params->public_factors),
-		M_ASN1_STRING_length(params->public_factors),
+	if (!EVP_Digest(ASN1_STRING_data(params->public_factors),
+		ASN1_STRING_length(params->public_factors),
 		dgst, dgstlen, md, NULL)) {
 		return 0;
 	}
@@ -531,7 +537,7 @@ static int extract_dsa_params(CPK_MASTER_SECRET *master, CPK_PUBLIC_PARAMS *para
 	if ((num_factors = CPK_MAP_num_factors(master->map_algor)) <= 0) {
 		goto err;
 	}
-	if (M_ASN1_STRING_length(master->secret_factors) != pri_size * num_factors) {
+	if (ASN1_STRING_length(master->secret_factors) != pri_size * num_factors) {
 		goto err;
 	}
 
@@ -540,9 +546,9 @@ static int extract_dsa_params(CPK_MASTER_SECRET *master, CPK_PUBLIC_PARAMS *para
 		goto err;
 	}
 
-	pri_ptr = M_ASN1_STRING_data(master->secret_factors);
-	pub_ptr = M_ASN1_STRING_data(param->public_factors);
-	memset(pub_ptr, 0, M_ASN1_STRING_length(param->public_factors));
+	pri_ptr = ASN1_STRING_data(master->secret_factors);
+	pub_ptr = ASN1_STRING_data(param->public_factors);
+	memset(pub_ptr, 0, ASN1_STRING_length(param->public_factors));
 
 	for (i = 0; i < num_factors; i++) {
 
@@ -609,7 +615,7 @@ static DSA *extract_dsa_priv_key(CPK_MASTER_SECRET *master, const char *id)
 	bn_size = BN_num_bytes(dsa->q);
 	
 	for (i = 0; i < num_indexes; i++) {
-		p = M_ASN1_STRING_data(master->secret_factors) + bn_size * index[i];
+		p = ASN1_STRING_data(master->secret_factors) + bn_size * index[i];
 		if (!BN_bin2bn(p, bn_size, bn)) {
 			goto err;
 		}
@@ -677,7 +683,7 @@ static DSA *extract_dsa_pub_key(CPK_PUBLIC_PARAMS *param, const char *id)
 	bn_size = BN_num_bytes(dsa->p);
 	
 	for (i = 0; i < num_indexes; i++) {
-		p = M_ASN1_STRING_data(param->public_factors) + bn_size * index[i];
+		p = ASN1_STRING_data(param->public_factors) + bn_size * index[i];
 		if (!BN_bin2bn(p, bn_size, bn)) {
 			goto err;
 		}
@@ -776,16 +782,16 @@ static int extract_ec_params(CPK_MASTER_SECRET *master, CPK_PUBLIC_PARAMS *param
 	if ((num_factors = CPK_MAP_num_factors(master->map_algor)) <= 0) {
 		goto err;
 	}
-	if (M_ASN1_STRING_length(master->secret_factors) != bn_size * num_factors) {
+	if (ASN1_STRING_length(master->secret_factors) != bn_size * num_factors) {
 		goto err;
 	}
 	if (!ASN1_STRING_set(param->public_factors, NULL, pt_size * num_factors)) {
 		goto err;
 	}
 	
-	bn_ptr = M_ASN1_STRING_data(master->secret_factors);
-	pt_ptr = M_ASN1_STRING_data(param->public_factors);
-	memset(pt_ptr, 0, M_ASN1_STRING_length(param->public_factors));
+	bn_ptr = ASN1_STRING_data(master->secret_factors);
+	pt_ptr = ASN1_STRING_data(param->public_factors);
+	memset(pt_ptr, 0, ASN1_STRING_length(param->public_factors));
 	
 	if (!(pt = EC_POINT_new(ec_group))) {
 		goto err;			
@@ -865,7 +871,7 @@ static EC_KEY *extract_ec_priv_key(CPK_MASTER_SECRET *master, const char *id)
 	
 	for (i = 0; i < num_indexes; i++) {
 		const unsigned char *p = 
-			M_ASN1_STRING_data(master->secret_factors) + 
+			ASN1_STRING_data(master->secret_factors) + 
 			bn_size * index[i];
 		
 		if (!BN_bin2bn(p, bn_size, bn)) {
@@ -936,7 +942,7 @@ static EC_KEY *extract_ec_pub_key(CPK_PUBLIC_PARAMS *param, const char *id)
 	if ((num_factors = CPK_MAP_num_factors(param->map_algor)) <= 0) {
 		goto err;
 	}
-	if (M_ASN1_STRING_length(param->public_factors) != pt_size * num_factors) {
+	if (ASN1_STRING_length(param->public_factors) != pt_size * num_factors) {
 		goto err;
 	}
 
@@ -955,7 +961,7 @@ static EC_KEY *extract_ec_pub_key(CPK_PUBLIC_PARAMS *param, const char *id)
 	}
 	for (i = 0; i < num_indexes; i++) {
 		const unsigned char *p = 
-			M_ASN1_STRING_data(param->public_factors) + 
+			ASN1_STRING_data(param->public_factors) + 
 			pt_size * index[i];		
 
 		if (!EC_POINT_oct2point(ec_group, pt, p, pt_size, ctx)) {

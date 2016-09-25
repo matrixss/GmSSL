@@ -53,8 +53,8 @@
 #include <openssl/evp.h>
 #include <openssl/sms4.h>
 #include <openssl/skf.h>
-#include <openssl/skf_ex.h>
-#include "skf_lcl.h"
+#include <openssl/gmapi.h>
+#include "gmapi_lcl.h"
 
 #define PADDING_TYPE_NO_PADDING		0
 #define PADDING_TYPE_PKCS5		1
@@ -166,28 +166,28 @@ ULONG DEVAPI SKF_EncryptInit(HANDLE hKey,
 	unsigned char *iv;
 
 	if (!(cipher = SKF_HANDLE_get_cipher(hKey, encparam))) {
-		SKFerr(SKF_F_SKF_ENCRYPTINIT, SKF_R_INVALID_KEY_HANDLE);
+		GMAPIerr(GMAPI_F_SKF_ENCRYPTINIT, GMAPI_R_INVALID_KEY_HANDLE);
 		return SAR_INVALIDPARAMERR;
 	}
 
 	if (!(key = SKF_HANDLE_get_key(hKey))) {
-		SKFerr(SKF_F_SKF_ENCRYPTINIT, SKF_R_INVALID_KEY_HANDLE);
+		GMAPIerr(GMAPI_F_SKF_ENCRYPTINIT, GMAPI_R_INVALID_KEY_HANDLE);
 		return SAR_INVALIDPARAMERR;
 	}
 
 	if (encparam->IVLen != SMS4_IV_LENGTH) {
-		SKFerr(SKF_F_SKF_ENCRYPTINIT, SKF_R_INVALID_IV_LENGTH);
+		GMAPIerr(GMAPI_F_SKF_ENCRYPTINIT, GMAPI_R_INVALID_IV_LENGTH);
 		return SAR_INVALIDPARAMERR;
 	}
 	iv = encparam->IV;
 
 	if (!(ctx = EVP_CIPHER_CTX_new())) {
-		SKFerr(SKF_F_SKF_ENCRYPTINIT, ERR_R_EVP_LIB);
+		GMAPIerr(GMAPI_F_SKF_ENCRYPTINIT, ERR_R_EVP_LIB);
 		return SAR_INVALIDPARAMERR;
 	}
 
 	if (!EVP_EncryptInit_ex(ctx, cipher, NULL, key, iv)) {
-		SKFerr(SKF_F_SKF_ENCRYPTINIT, ERR_R_EVP_LIB);
+		GMAPIerr(GMAPI_F_SKF_ENCRYPTINIT, ERR_R_EVP_LIB);
 		goto end;
 	}
 
@@ -211,7 +211,7 @@ ULONG DEVAPI SKF_EncryptUpdate(HANDLE hKey,
 	int inlen, outlen;
 
 	if (!(ctx = SKF_HANDLE_get_cipher_ctx(hKey))) {
-		SKFerr(SKF_F_SKF_ENCRYPTUPDATE, SKF_R_INVALID_CIPHER_CTX_HANDLE);
+		GMAPIerr(GMAPI_F_SKF_ENCRYPTUPDATE, GMAPI_R_INVALID_CIPHER_CTX_HANDLE);
 		return SAR_INVALIDPARAMERR;
 	}
 
@@ -219,7 +219,7 @@ ULONG DEVAPI SKF_EncryptUpdate(HANDLE hKey,
 	inlen = ulDataLen;
 	outlen = *pulEncryptedLen;
 	if (!EVP_EncryptUpdate(ctx, pbEncryptedData, &outlen, pbData, inlen)) {
-		SKFerr(SKF_F_SKF_ENCRYPTUPDATE, ERR_R_EVP_LIB);
+		GMAPIerr(GMAPI_F_SKF_ENCRYPTUPDATE, ERR_R_EVP_LIB);
 		return SAR_FAIL;
 	}
 
@@ -235,13 +235,13 @@ ULONG DEVAPI SKF_EncryptFinal(HANDLE hKey,
 	int outlen;
 
 	if (!(ctx = SKF_HANDLE_get_cipher_ctx(hKey))) {
-		SKFerr(SKF_F_SKF_ENCRYPTFINAL, SKF_R_INVALID_CIPHER_CTX_HANDLE);
+		GMAPIerr(GMAPI_F_SKF_ENCRYPTFINAL, GMAPI_R_INVALID_CIPHER_CTX_HANDLE);
 		return SAR_INVALIDPARAMERR;
 	}
 
 	outlen = *pulEncryptedDataLen;
 	if (!EVP_EncryptFinal(ctx, pbEncryptedData, &outlen)) {
-		SKFerr(SKF_F_SKF_ENCRYPTFINAL, ERR_R_EVP_LIB);
+		GMAPIerr(GMAPI_F_SKF_ENCRYPTFINAL, ERR_R_EVP_LIB);
 		return SAR_FAIL;
 	}
 
@@ -263,27 +263,27 @@ ULONG DEVAPI SKF_DecryptInit(HANDLE hKey,
 	unsigned char *iv;
 
 	if (!(cipher = SKF_HANDLE_get_cipher(hKey, param))) {
-		SKFerr(SKF_F_SKF_DECRYPTINIT, SKF_R_INVALID_KEY_HANDLE);
+		GMAPIerr(GMAPI_F_SKF_DECRYPTINIT, GMAPI_R_INVALID_KEY_HANDLE);
 		return SAR_INVALIDPARAMERR;
 	}
 	if (!(key = SKF_HANDLE_get_key(hKey))) {
-		SKFerr(SKF_F_SKF_DECRYPTINIT, SKF_R_INVALID_KEY_HANDLE);
+		GMAPIerr(GMAPI_F_SKF_DECRYPTINIT, GMAPI_R_INVALID_KEY_HANDLE);
 		return SAR_INVALIDPARAMERR;
 	}
 	if (param->IVLen != SMS4_IV_LENGTH) {
-		SKFerr(SKF_F_SKF_DECRYPTINIT, SKF_R_INVALID_IV_LENGTH);
+		GMAPIerr(GMAPI_F_SKF_DECRYPTINIT, GMAPI_R_INVALID_IV_LENGTH);
 		ret = SAR_INVALIDPARAMERR;
 		goto end;
 	}
 	iv = param->IV;
 
 	if (!(ctx = EVP_CIPHER_CTX_new())) {
-		SKFerr(SKF_F_SKF_DECRYPTINIT, ERR_R_EVP_LIB);
+		GMAPIerr(GMAPI_F_SKF_DECRYPTINIT, ERR_R_EVP_LIB);
 		goto end;
 	}
 
 	if (!EVP_DecryptInit_ex(ctx, cipher, NULL, key, iv)) {
-		SKFerr(SKF_F_SKF_DECRYPTINIT, ERR_R_EVP_LIB);
+		GMAPIerr(GMAPI_F_SKF_DECRYPTINIT, ERR_R_EVP_LIB);
 		goto end;
 	}
 
@@ -309,7 +309,7 @@ ULONG DEVAPI SKF_DecryptUpdate(HANDLE hKey,
 	int inlen, outlen;
 
 	if (!(ctx = SKF_HANDLE_get_cipher_ctx(hKey))) {
-		SKFerr(SKF_F_SKF_DECRYPTUPDATE, SKF_R_INVALID_CIPHER_CTX_HANDLE);
+		GMAPIerr(GMAPI_F_SKF_DECRYPTUPDATE, GMAPI_R_INVALID_CIPHER_CTX_HANDLE);
 		return SAR_INVALIDPARAMERR;
 	}
 
@@ -317,7 +317,7 @@ ULONG DEVAPI SKF_DecryptUpdate(HANDLE hKey,
 	inlen = ulEncryptedLen;
 	outlen = *pulDataLen;
 	if (!EVP_DecryptUpdate(ctx, pbData, &outlen, pbEncryptedData, inlen)) {
-		SKFerr(SKF_F_SKF_DECRYPTUPDATE, ERR_R_EVP_LIB);
+		GMAPIerr(GMAPI_F_SKF_DECRYPTUPDATE, ERR_R_EVP_LIB);
 		return SAR_FAIL;
 	}
 
@@ -333,7 +333,7 @@ ULONG DEVAPI SKF_DecryptFinal(HANDLE hKey,
 	int len;
 
 	if (!(ctx = SKF_HANDLE_get_cipher_ctx(hKey))) {
-		SKFerr(SKF_F_SKF_DECRYPTFINAL, SKF_R_INVALID_KEY_HANDLE);
+		GMAPIerr(GMAPI_F_SKF_DECRYPTFINAL, GMAPI_R_INVALID_KEY_HANDLE);
 		return SAR_INVALIDPARAMERR;
 	}
 
@@ -361,14 +361,14 @@ ULONG DEVAPI SKF_Encrypt(HANDLE hKey,
 	p = pbEncryptedData;
 	len = *pulEncryptedLen;
 	if ((rv = SKF_EncryptUpdate(hKey, pbData, ulDataLen, p, &len)) != SAR_OK) {
-		SKFerr(SKF_F_SKF_ENCRYPT, ERR_R_SKF_LIB);
+		GMAPIerr(GMAPI_F_SKF_ENCRYPT, ERR_R_GMAPI_LIB);
 		return rv;
 	}
 
 	p += len;
 	len = *pulEncryptedLen - len;
 	if ((rv = SKF_EncryptFinal(hKey, p, &len)) != SAR_OK) {
-		SKFerr(SKF_F_SKF_ENCRYPT, ERR_R_SKF_LIB);
+		GMAPIerr(GMAPI_F_SKF_ENCRYPT, ERR_R_GMAPI_LIB);
 		return rv;
 	}
 
@@ -389,14 +389,14 @@ ULONG DEVAPI SKF_Decrypt(HANDLE hKey,
 	p = pbData;
 	len = *pulDataLen;
 	if ((rv = SKF_DecryptUpdate(hKey, pbEncryptedData, ulEncryptedLen, p, &len)) != SAR_OK) {
-		SKFerr(SKF_F_SKF_DECRYPT, ERR_R_SKF_LIB);
+		GMAPIerr(GMAPI_F_SKF_DECRYPT, ERR_R_GMAPI_LIB);
 		return rv;
 	}
 
 	p += len;
 	len = *pulDataLen - len;
 	if ((rv = SKF_DecryptFinal(hKey, p, &len)) != SAR_OK) {
-		SKFerr(SKF_F_SKF_DECRYPT, ERR_R_SKF_LIB);
+		GMAPIerr(GMAPI_F_SKF_DECRYPT, ERR_R_GMAPI_LIB);
 		return rv;
 	}
 

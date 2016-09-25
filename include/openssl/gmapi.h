@@ -50,14 +50,15 @@
 
 #ifndef HEADER_GMAPI_H
 #define HEADER_GMAPI_H
-#ifndef NO_GMSSL
 
 #include <openssl/ec.h>
+#include <openssl/sm2.h>
 #include <openssl/evp.h>
 #include <openssl/cmac.h>
 #include <openssl/cbcmac.h>
 #include <openssl/skf.h>
 #include <openssl/sdf.h>
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -122,6 +123,18 @@ int ERR_load_GMAPI_strings(void);
 # define GMAPI_F_RSA_SET_RSAPRIVATEKEYBLOB                127
 # define GMAPI_F_RSA_SET_RSAPUBLICKEYBLOB                 128
 # define GMAPI_F_SKF_CLOSEHANDLE                          109
+# define GMAPI_F_SKF_DECRYPT                              138
+# define GMAPI_F_SKF_DECRYPTFINAL                         139
+# define GMAPI_F_SKF_DECRYPTINIT                          140
+# define GMAPI_F_SKF_DECRYPTUPDATE                        141
+# define GMAPI_F_SKF_DIGEST                               134
+# define GMAPI_F_SKF_DIGESTFINAL                          135
+# define GMAPI_F_SKF_DIGESTINIT                           136
+# define GMAPI_F_SKF_DIGESTUPDATE                         137
+# define GMAPI_F_SKF_ENCRYPT                              142
+# define GMAPI_F_SKF_ENCRYPTFINAL                         143
+# define GMAPI_F_SKF_ENCRYPTINIT                          144
+# define GMAPI_F_SKF_ENCRYPTUPDATE                        145
 # define GMAPI_F_SKF_EXTECCDECRYPT                        110
 # define GMAPI_F_SKF_EXTECCENCRYPT                        111
 # define GMAPI_F_SKF_EXTECCSIGN                           112
@@ -130,11 +143,19 @@ int ERR_load_GMAPI_strings(void);
 # define GMAPI_F_SKF_EXTRSAPUBKEYOPERATION                130
 # define GMAPI_F_SKF_GENEXTECCKEYPAIR                     114
 # define GMAPI_F_SKF_GENEXTRSAKEY                         131
+# define GMAPI_F_SKF_GENRANDOM                            146
+# define GMAPI_F_SKF_GETDEVINFO                           132
+# define GMAPI_F_SKF_GETDEVSTATE                          133
 # define GMAPI_F_SKF_HANDLE_GET_CBCMAC_CTX                115
 # define GMAPI_F_SKF_HANDLE_GET_CIPHER                    116
 # define GMAPI_F_SKF_HANDLE_GET_CIPHER_CTX                117
 # define GMAPI_F_SKF_HANDLE_GET_KEY                       118
 # define GMAPI_F_SKF_HANDLE_GET_MD_CTX                    119
+# define GMAPI_F_SKF_MAC                                  147
+# define GMAPI_F_SKF_MACFINAL                             148
+# define GMAPI_F_SKF_MACINIT                              149
+# define GMAPI_F_SKF_MACUPDATE                            150
+# define GMAPI_F_SKF_SETSYMMKEY                           151
 # define GMAPI_F_SM2_CIPHERTEXT_VALUE_GET_ECCCIPHERBLOB   120
 # define GMAPI_F_SM2_CIPHERTEXT_VALUE_NEW_FROM_ECCCIPHERBLOB 121
 # define GMAPI_F_SM2_CIPHERTEXT_VALUE_SET_ECCCIPHERBLOB   122
@@ -150,15 +171,20 @@ int ERR_load_GMAPI_strings(void);
 # define GMAPI_R_ENCODE_RSA_PUBLIC_KEY_FAILED             137
 # define GMAPI_R_ENCODE_SIGNATURE_FAILED                  105
 # define GMAPI_R_ENCRYPT_FAILED                           106
+# define GMAPI_R_FAIL                                     150
 # define GMAPI_R_GEN_RSA_FAILED                           138
 # define GMAPI_R_GET_PRIVATE_KEY_FAILED                   107
 # define GMAPI_R_GET_PUBLIC_KEY_FAILED                    108
+# define GMAPI_R_INVALID_ALGID                            143
 # define GMAPI_R_INVALID_ALGOR                            109
+# define GMAPI_R_INVALID_ARGUMENTS                        144
 # define GMAPI_R_INVALID_BIGNUM_LENGTH                    110
+# define GMAPI_R_INVALID_BLOB                             145
 # define GMAPI_R_INVALID_CIPHERTEXT                       111
 # define GMAPI_R_INVALID_CIPHERTEXT_LENGTH                112
 # define GMAPI_R_INVALID_CIPHERTEXT_MAC                   113
 # define GMAPI_R_INVALID_CIPHERTEXT_POINT                 114
+# define GMAPI_R_INVALID_CIPHER_CTX_HANDLE                151
 # define GMAPI_R_INVALID_DIGEST_LENGTH                    115
 # define GMAPI_R_INVALID_ECC_PRIVATE_KEY                  116
 # define GMAPI_R_INVALID_ECC_PUBLIC_KEY                   117
@@ -166,26 +192,32 @@ int ERR_load_GMAPI_strings(void);
 # define GMAPI_R_INVALID_EC_PRIVATE_KEY                   119
 # define GMAPI_R_INVALID_EC_PUBLIC_KEY                    120
 # define GMAPI_R_INVALID_FEED_BIT_LENGTH                  121
+# define GMAPI_R_INVALID_HANDLE                           146
 # define GMAPI_R_INVALID_HANDLE_ALGOR                     122
 # define GMAPI_R_INVALID_HANDLE_MAGIC                     123
 # define GMAPI_R_INVALID_HANDLE_TYPE                      124
+# define GMAPI_R_INVALID_HASH_HANDLE                      147
+# define GMAPI_R_INVALID_ID_LENGTH                        148
 # define GMAPI_R_INVALID_INPUT_LENGTH                     139
+# define GMAPI_R_INVALID_IV_LENGTH                        152
 # define GMAPI_R_INVALID_KEY_HANDLE                       125
 # define GMAPI_R_INVALID_KEY_LENGTH                       126
+# define GMAPI_R_INVALID_MAC_HANDLE                       153
 # define GMAPI_R_INVALID_PLAINTEXT_LENGTH                 127
 # define GMAPI_R_INVALID_PRIVATE_KEY                      128
 # define GMAPI_R_INVALID_PUBLIC_KEY                       129
+# define GMAPI_R_INVALID_RANDOM_LENGTH                    154
 # define GMAPI_R_INVALID_RSA_KEY_LENGTH                   140
 # define GMAPI_R_INVALID_RSA_PRIVATE_KEY                  141
 # define GMAPI_R_INVALID_RSA_PUBLIC_KEY                   142
 # define GMAPI_R_INVALID_SIGNATURE                        130
 # define GMAPI_R_MALLOC_FAILED                            131
+# define GMAPI_R_NO_PUBLIC_KEY                            149
 # define GMAPI_R_NULL_ARGUMENT                            132
 # define GMAPI_R_SIGN_FAILED                              133
 # define GMAPI_R_VERIFY_NOT_PASS                          134
 
-#  ifdef  __cplusplus
+# ifdef  __cplusplus
 }
-#  endif
 # endif
 #endif

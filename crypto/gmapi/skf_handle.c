@@ -50,9 +50,10 @@
  */
 
 #include <stdio.h>
+#include <openssl/skf.h>
 #include <openssl/gmapi.h>
 #ifndef NO_GMSSL
-#include "skf_lcl.h"
+#include "gmapi_lcl.h"
 
 unsigned char *SKF_HANDLE_get_key(HANDLE hKey)
 {

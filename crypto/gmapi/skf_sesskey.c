@@ -54,8 +54,8 @@
 #include <openssl/sms4.h>
 #include <openssl/evp.h>
 #include <openssl/skf.h>
-#include <openssl/skf_ex.h>
-#include "skf_lcl.h"
+#include <openssl/gmapi.h>
+#include "gmapi_lcl.h"
 
 #define PADDING_TYPE_NO_PADDING		0
 #define PADDING_TYPE_PKCS5		1
@@ -69,7 +69,7 @@ ULONG DEVAPI SKF_SetSymmKey(DEVHANDLE hDev,
 	SKF_HANDLE *hKey = NULL;
 
 	if (!(hKey = OPENSSL_malloc(sizeof(*hKey)))) {
-		SKFerr(SKF_F_SKF_SETSYMMKEY, SKF_R_MALLOC_FAILED);
+		GMAPIerr(GMAPI_F_SKF_SETSYMMKEY, GMAPI_R_MALLOC_FAILED);
 		return SAR_FAIL;
 	}
 	memset(hKey, 0, sizeof(*hKey));
@@ -87,7 +87,7 @@ ULONG DEVAPI SKF_SetSymmKey(DEVHANDLE hDev,
 		hKey->keylen = SMS4_KEY_LENGTH;
 		break;
 	default:
-		SKFerr(SKF_F_SKF_SETSYMMKEY, SKF_R_INVALID_ALGOR);
+		GMAPIerr(GMAPI_F_SKF_SETSYMMKEY, GMAPI_R_INVALID_ALGOR);
 		return SAR_INVALIDPARAMERR;
 	}
 	memcpy(hKey->key, pbKey, hKey->keylen);

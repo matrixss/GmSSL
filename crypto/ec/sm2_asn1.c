@@ -49,6 +49,7 @@
 
 #include <string.h>
 #include <openssl/ec.h>
+#include <openssl/sm2.h>
 #include <openssl/err.h>
 #include <openssl/asn1.h>
 #include <openssl/asn1t.h>
@@ -143,16 +144,16 @@ SM2_CIPHERTEXT_VALUE *d2i_SM2_CIPHERTEXT_VALUE(const EC_GROUP *group,
 		ECerr(EC_F_D2I_SM2_CIPHERTEXT_VALUE, ERR_R_MALLOC_FAILURE);
 		goto end;
 	}
-	if (!(x = ASN1_INTEGER_to_BN(asn1->xCoordinate))) {
-		ECerr(EC_F_D2I_SM2_CIPHERTEXT_VALUE, ERR_R_BN_LIB;
+	if (!(x = ASN1_INTEGER_to_BN(asn1->xCoordinate, NULL))) {
+		ECerr(EC_F_D2I_SM2_CIPHERTEXT_VALUE, ERR_R_BN_LIB);
 		goto end;
 	}
-	if (!(y = ASN1_INTEGER_to_BN(asn1->yCoordinate))) {
-		ECerr(EC_F_D2I_SM2_CIPHERTEXT_VALUE, ERR_R_BN_LIB;
+	if (!(y = ASN1_INTEGER_to_BN(asn1->yCoordinate, NULL))) {
+		ECerr(EC_F_D2I_SM2_CIPHERTEXT_VALUE, ERR_R_BN_LIB);
 		goto end;
 	}
 
-	ret = SM2_CIPHERTEXT_VALUE_new();
+	ret = SM2_CIPHERTEXT_VALUE_new(group);
 	bn_ctx = BN_CTX_new();
 	if (!ret || !bn_ctx) {
 		ECerr(EC_F_D2I_SM2_CIPHERTEXT_VALUE, ERR_R_MALLOC_FAILURE);

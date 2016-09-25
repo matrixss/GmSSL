@@ -54,7 +54,7 @@
 #include <openssl/gmapi.h>
 #ifndef NO_GMSSL
 
-#include "skf_lcl.h"
+#include "gmapi_lcl.h"
 
 #define DEV_NAME		"pseudo_dev"
 #define DEV_NAME_LIST		DEV_NAME"\0"
@@ -96,7 +96,7 @@ ULONG DEVAPI SKF_GetDevState(LPSTR szDevName,
 	ULONG *pulDevState)
 {
 	if (!pulDevState) {
-		SKFerr(SKF_F_SKF_GETDEVSTATE, SKF_R_NULL_ARGUMENT);
+		GMAPIerr(GMAPI_F_SKF_GETDEVSTATE, GMAPI_R_NULL_ARGUMENT);
 		return SAR_INVALIDPARAMERR;
 	}
 
@@ -110,7 +110,7 @@ ULONG DEVAPI SKF_GetDevInfo(DEVHANDLE hDev,
 	DEVINFO devInfo;
 
 	if (!pDevInfo) {
-		SKFerr(SKF_F_SKF_GETDEVINFO, SKF_R_NULL_ARGUMENT);
+		GMAPIerr(GMAPI_F_SKF_GETDEVINFO, GMAPI_R_NULL_ARGUMENT);
 		return SAR_INVALIDPARAMERR;
 	}
 

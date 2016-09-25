@@ -10,7 +10,7 @@
  */
 
 /* Serialized OID's */
-static const unsigned char so[7350] = {
+static const unsigned char so[7361] = {
     0x2A,0x86,0x48,0x86,0xF7,0x0D,                 /* [    0] OBJ_rsadsi */
     0x2A,0x86,0x48,0x86,0xF7,0x0D,0x01,            /* [    6] OBJ_pkcs */
     0x2A,0x86,0x48,0x86,0xF7,0x0D,0x02,0x02,       /* [   13] OBJ_md2 */
@@ -1038,9 +1038,11 @@ static const unsigned char so[7350] = {
     0x2A,0x86,0x48,0x01,0x86,0xFD,0x1E,0x01,0x01,0x02,  /* [ 7319] OBJ_type2curve */
     0x2A,0x86,0x48,0x01,0x86,0xFD,0x1E,0x01,0x01,0x03,  /* [ 7329] OBJ_type3curve */
     0x2A,0x86,0x48,0x01,0x86,0xFD,0x1E,0x01,0x01,0x04,  /* [ 7339] OBJ_type4curve */
+    0x2B,0x81,0x04,0x01,0x13,                      /* [ 7349] OBJ_tdes_cbc_in_ecies */
+    0x2B,0x81,0x04,0x01,0x18,0x02,                 /* [ 7354] OBJ_cmac_aes256_ecies */
 };
 
-#define NUM_NID 1139
+#define NUM_NID 1141
 static const ASN1_OBJECT nid_objs[NUM_NID] = {
     {"UNDEF", "undefined", NID_undef},
     {"rsadsi", "RSA Data Security, Inc.", NID_rsadsi, 6, &so[0]},
@@ -2181,9 +2183,11 @@ static const ASN1_OBJECT nid_objs[NUM_NID] = {
     {"type2curve", "type2curve", NID_type2curve, 10, &so[7319]},
     {"type3curve", "type3curve", NID_type3curve, 10, &so[7329]},
     {"type4curve", "type4curve", NID_type4curve, 10, &so[7339]},
+    {"tdes-cbc-in-ecies", "tdes-cbc-in-ecies", NID_tdes_cbc_in_ecies, 5, &so[7349]},
+    {"cmac-aes256-ecies", "cmac-aes256-ecies", NID_cmac_aes256_ecies, 6, &so[7354]},
 };
 
-#define NUM_SN 1130
+#define NUM_SN 1132
 static const unsigned int sn_objs[NUM_SN] = {
      364,    /* "AD_DVCS" */
      419,    /* "AES-128-CBC" */
@@ -2544,6 +2548,7 @@ static const unsigned int sn_objs[NUM_SN] = {
      130,    /* "clientAuth" */
     1078,    /* "cmac-aes128-ecies" */
     1079,    /* "cmac-aes192-ecies" */
+    1140,    /* "cmac-aes256-ecies" */
      131,    /* "codeSigning" */
       50,    /* "contentType" */
       53,    /* "countersignature" */
@@ -3270,6 +3275,7 @@ static const unsigned int sn_objs[NUM_SN] = {
      890,    /* "supportedAlgorithms" */
      874,    /* "supportedApplicationContext" */
      402,    /* "targetInformation" */
+    1139,    /* "tdes-cbc-in-ecies" */
      864,    /* "telephoneNumber" */
      866,    /* "teletexTerminalIdentifier" */
      865,    /* "telexNumber" */
@@ -3317,7 +3323,7 @@ static const unsigned int sn_objs[NUM_SN] = {
     1069,    /* "xor-in-ecies" */
 };
 
-#define NUM_LN 1130
+#define NUM_LN 1132
 static const unsigned int ln_objs[NUM_LN] = {
      363,    /* "AD Time Stamping" */
      405,    /* "ANSI X9.62" */
@@ -3650,6 +3656,7 @@ static const unsigned int ln_objs[NUM_LN] = {
      894,    /* "cmac" */
     1078,    /* "cmac-aes128-ecies" */
     1079,    /* "cmac-aes192-ecies" */
+    1140,    /* "cmac-aes256-ecies" */
       13,    /* "commonName" */
      513,    /* "content types" */
       50,    /* "contentType" */
@@ -4402,6 +4409,7 @@ static const unsigned int ln_objs[NUM_LN] = {
      890,    /* "supportedAlgorithms" */
      874,    /* "supportedApplicationContext" */
      100,    /* "surname" */
+    1139,    /* "tdes-cbc-in-ecies" */
      864,    /* "telephoneNumber" */
      866,    /* "teletexTerminalIdentifier" */
      865,    /* "telexNumber" */
@@ -4451,7 +4459,7 @@ static const unsigned int ln_objs[NUM_LN] = {
     1132,    /* "zuc" */
 };
 
-#define NUM_OBJ 1033
+#define NUM_OBJ 1035
 static const unsigned int obj_objs[NUM_OBJ] = {
        0,    /* OBJ_undef                        0 */
      181,    /* OBJ_iso                          1 */
@@ -4753,6 +4761,7 @@ static const unsigned int obj_objs[NUM_OBJ] = {
     1063,    /* OBJ_ecies_recommendedParameters  1 3 132 1 7 */
     1064,    /* OBJ_ecies_specifiedParameters    1 3 132 1 8 */
     1069,    /* OBJ_xor_in_ecies                 1 3 132 1 18 */
+    1139,    /* OBJ_tdes_cbc_in_ecies            1 3 132 1 19 */
     1076,    /* OBJ_hmac_full_ecies              1 3 132 1 22 */
     1077,    /* OBJ_hmac_half_ecies              1 3 132 1 23 */
      624,    /* OBJ_set_rootKeyThumb             2 23 42 3 0 0 */
@@ -4818,6 +4827,7 @@ static const unsigned int obj_objs[NUM_OBJ] = {
     1075,    /* OBJ_aes256_ctr_in_ecies          1 3 132 1 21 2 */
     1078,    /* OBJ_cmac_aes128_ecies            1 3 132 1 24 0 */
     1079,    /* OBJ_cmac_aes192_ecies            1 3 132 1 24 1 */
+    1140,    /* OBJ_cmac_aes256_ecies            1 3 132 1 24 2 */
      631,    /* OBJ_setAttr_GenCryptgrm          2 23 42 3 3 3 1 */
      632,    /* OBJ_setAttr_T2Enc                2 23 42 3 3 4 1 */
      633,    /* OBJ_setAttr_T2cleartxt           2 23 42 3 3 4 2 */

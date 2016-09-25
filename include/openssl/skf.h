@@ -53,7 +53,7 @@
 #ifndef HEADER_SKF_H
 #define HEADER_SKF_H
 
-#include <openssl/sdg.h>
+#include <openssl/sgd.h>
 
 #ifndef WIN32
 typedef signed char		INT8;

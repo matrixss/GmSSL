@@ -51,9 +51,10 @@
 
 #include <stdio.h>
 #include <openssl/evp.h>
+#include <openssl/gmapi.h>
 #include <openssl/skf.h>
-#include <openssl/skf_ex.h>
-#include "skf_lcl.h"
+#include <openssl/sdf.h>
+#include "gmapi_lcl.h"
 
 
 ULONG DEVAPI SKF_DigestInit(DEVHANDLE hDev,
@@ -82,24 +83,24 @@ ULONG DEVAPI SKF_DigestInit(DEVHANDLE hDev,
 		md = EVP_sha256();
 		break;
 	default:
-		SKFerr(SKF_F_SKF_DIGESTINIT, SKF_R_INVALID_ALGID);
+		GMAPIerr(GMAPI_F_SKF_DIGESTINIT, GMAPI_R_INVALID_ALGID);
 		return SAR_INVALIDPARAMERR;
 	}
 
 	if (!(mdctx = EVP_MD_CTX_create())) {
-		SKFerr(SKF_F_SKF_DIGESTINIT, SKF_R_MALLOC_FAILED);
+		GMAPIerr(GMAPI_F_SKF_DIGESTINIT, GMAPI_R_MALLOC_FAILED);
 		return SAR_FAIL;
 	}
 
 	if (!EVP_DigestInit_ex(mdctx, md, NULL)) {
-		SKFerr(SKF_F_SKF_DIGESTINIT, ERR_R_EVP_LIB);
+		GMAPIerr(GMAPI_F_SKF_DIGESTINIT, ERR_R_EVP_LIB);
 		goto end;
 	}
 
 	if (pPubKey) {
 
 		if (!(ec_key = EC_KEY_new_from_ECCPUBLICKEYBLOB(pPubKey))) {
-			SKFerr(SKF_F_SKF_DIGESTINIT, SKF_R_INVALID_BLOB);
+			GMAPIerr(GMAPI_F_SKF_DIGESTINIT, GMAPI_R_INVALID_BLOB);
 			ret = SAR_INVALIDPARAMERR;
 			goto end;
 		}
@@ -108,14 +109,14 @@ ULONG DEVAPI SKF_DigestInit(DEVHANDLE hDev,
 		//FIXME
 		if (pbID) {
 			if (ulIDLen <= 0 || ulIDLen > SM2_MAX_ID_LENGTH) {
-				SKFerr(SKF_F_SKF_DIGESTINIT, SKF_R_INVALID_ID_LENGTH);
+				GMAPIerr(GMAPI_F_SKF_DIGESTINIT, GMAPI_R_INVALID_ID_LENGTH);
 				ret = SAR_INVALIDPARAMERR;
 				goto end;
 			}
 
 			OPENSSL_assert(strlen((char *)pbID) == ulIDLen);
 			if (!SM2_set_id(ec_key, (char *)pbID)) {
-				SKFerr(SKF_F_SKF_DIGESTINIT, ERR_R_SM2_LIB);
+				GMAPIerr(GMAPI_F_SKF_DIGESTINIT, ERR_R_SM2_LIB);
 				ret = SAR_FAIL;
 				goto end;
 			}
@@ -123,7 +124,7 @@ ULONG DEVAPI SKF_DigestInit(DEVHANDLE hDev,
 
 		dgstlen = sizeof(dgst);
 		if (!SM2_compute_id_digest(md, dgst, &dgstlen, ec_key)) {
-			SKFerr(SKF_F_SKF_DIGESTINIT, ERR_R_SM2_LIB);
+			GMAPIerr(GMAPI_F_SKF_DIGESTINIT, ERR_R_SM2_LIB);
 			goto end;
 		}
 
@@ -134,7 +135,7 @@ ULONG DEVAPI SKF_DigestInit(DEVHANDLE hDev,
 
 	} else {
 		if (pbID) {
-			SKFerr(SKF_F_SKF_DIGESTINIT, SKF_R_NO_PUBLIC_KEY);
+			GMAPIerr(GMAPI_F_SKF_DIGESTINIT, GMAPI_R_NO_PUBLIC_KEY);
 			ret = SAR_INVALIDPARAMERR;
 			goto end;
 		}
@@ -142,7 +143,7 @@ ULONG DEVAPI SKF_DigestInit(DEVHANDLE hDev,
 
 
 	if (!(hHash = OPENSSL_malloc(sizeof(*hHash)))) {
-		SKFerr(SKF_F_SKF_DIGESTINIT, ERR_R_MALLOC_FAILURE);
+		GMAPIerr(GMAPI_F_SKF_DIGESTINIT, ERR_R_MALLOC_FAILURE);
 		goto end;
 	}
 
@@ -168,12 +169,12 @@ ULONG DEVAPI SKF_DigestUpdate(HANDLE hHash,
 	EVP_MD_CTX *md_ctx;
 
 	if (!(md_ctx = SKF_HANDLE_get_md_ctx(hHash))) {
-		SKFerr(SKF_F_SKF_DIGESTUPDATE, SKF_R_INVALID_HASH_HANDLE);
+		GMAPIerr(GMAPI_F_SKF_DIGESTUPDATE, GMAPI_R_INVALID_HASH_HANDLE);
 		return SAR_INVALIDPARAMERR;
 	}
 
 	if (!pbData) {
-		SKFerr(SKF_F_SKF_DIGESTUPDATE, SKF_R_INVALID_ARGUMENTS);
+		GMAPIerr(GMAPI_F_SKF_DIGESTUPDATE, GMAPI_R_INVALID_ARGUMENTS);
 		return SAR_INVALIDPARAMERR;
 	}
 
@@ -182,7 +183,7 @@ ULONG DEVAPI SKF_DigestUpdate(HANDLE hHash,
 	}
 
 	if (!EVP_DigestUpdate(md_ctx, pbData, ulDataLen)) {
-		SKFerr(SKF_F_SKF_DIGESTUPDATE, ERR_R_EVP_LIB);
+		GMAPIerr(GMAPI_F_SKF_DIGESTUPDATE, ERR_R_EVP_LIB);
 		return SAR_FAIL;
 	}
 
@@ -196,17 +197,17 @@ ULONG DEVAPI SKF_DigestFinal(HANDLE hHash,
 	EVP_MD_CTX *mdctx;
 
 	if (!(mdctx = SKF_HANDLE_get_md_ctx(hHash))) {
-		SKFerr(SKF_F_SKF_DIGESTFINAL, SKF_R_INVALID_HANDLE);
+		GMAPIerr(GMAPI_F_SKF_DIGESTFINAL, GMAPI_R_INVALID_HANDLE);
 		return SAR_INVALIDPARAMERR;
 	}
 
 	if (!pulHashLen) {
-		SKFerr(SKF_F_SKF_DIGESTFINAL, SKF_R_NULL_ARGUMENT);
+		GMAPIerr(GMAPI_F_SKF_DIGESTFINAL, GMAPI_R_NULL_ARGUMENT);
 		return SAR_INVALIDPARAMERR;
 	}
 
 	if (!EVP_DigestFinal_ex(mdctx, pHashData, pulHashLen)) {
-		SKFerr(SKF_F_SKF_DIGESTFINAL, ERR_R_EVP_LIB);
+		GMAPIerr(GMAPI_F_SKF_DIGESTFINAL, ERR_R_EVP_LIB);
 		return SAR_FAIL;
 	}
 
@@ -224,12 +225,12 @@ ULONG DEVAPI SKF_Digest(HANDLE hHash,
 	ULONG rv;
 
 	if ((rv = SKF_DigestUpdate(hHash, pbData, ulDataLen)) != SAR_OK) {
-		SKFerr(SKF_F_SKF_DIGEST, ERR_R_SKF_LIB);
+		GMAPIerr(GMAPI_F_SKF_DIGEST, ERR_R_GMAPI_LIB);
 		return rv;
 	}
 
 	if ((rv = SKF_DigestFinal(hHash, pbHashData, pulHashLen)) != SAR_OK) {
-		SKFerr(SKF_F_SKF_DIGEST, ERR_R_SKF_LIB);
+		GMAPIerr(GMAPI_F_SKF_DIGEST, ERR_R_GMAPI_LIB);
 		return rv;
 	}
 

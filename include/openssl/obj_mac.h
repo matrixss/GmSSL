@@ -4612,6 +4612,10 @@
 #define NID_xor_in_ecies                1069
 #define OBJ_xor_in_ecies                OBJ_secg_scheme,18L
 
+#define SN_tdes_cbc_in_ecies            "tdes-cbc-in-ecies"
+#define NID_tdes_cbc_in_ecies           1139
+#define OBJ_tdes_cbc_in_ecies           OBJ_secg_scheme,19L
+
 #define SN_aes128_cbc_in_ecies          "aes128-cbc-in-ecies"
 #define NID_aes128_cbc_in_ecies         1070
 #define OBJ_aes128_cbc_in_ecies         OBJ_secg_scheme,20L,0L
@@ -4651,6 +4655,10 @@
 #define SN_cmac_aes192_ecies            "cmac-aes192-ecies"
 #define NID_cmac_aes192_ecies           1079
 #define OBJ_cmac_aes192_ecies           OBJ_secg_scheme,24L,1L
+
+#define SN_cmac_aes256_ecies            "cmac-aes256-ecies"
+#define NID_cmac_aes256_ecies           1140
+#define OBJ_cmac_aes256_ecies           OBJ_secg_scheme,24L,2L
 
 #define SN_cbc_mac              "CBC-MAC"
 #define LN_cbc_mac              "cbc-mac"

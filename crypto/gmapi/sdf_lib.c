@@ -54,6 +54,9 @@
 #include <openssl/evp.h>
 #include <openssl/skf.h>
 #include <openssl/sdf.h>
+#include <openssl/gmapi.h>
+#include "gmapi_lcl.h"
+
 #ifndef NO_GMSSL
 
 

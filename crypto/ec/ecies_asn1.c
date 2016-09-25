@@ -123,15 +123,6 @@ ASN1_SEQUENCE(ECIES_PARAMETERS) = {
 IMPLEMENT_ASN1_FUNCTIONS(ECIES_PARAMETERS)
 IMPLEMENT_ASN1_DUP_FUNCTION(ECIES_PARAMETERS)
 
-
-/*
-ECIES-Ciphertext-Value ::= SEQUENCE {
-      ephemeralPublicKey ECPoint,
-      symmetricCiphertext OCTET STRING,
-      macTag OCTET STRING
-}
-*/
-
 ASN1_SEQUENCE(ECIES_CIPHERTEXT_VALUE) = {
 	ASN1_SIMPLE(ECIES_CIPHERTEXT_VALUE, ephem_point, ASN1_OCTET_STRING),
 	ASN1_SIMPLE(ECIES_CIPHERTEXT_VALUE, ciphertext, ASN1_OCTET_STRING),
@@ -144,188 +135,124 @@ IMPLEMENT_ASN1_DUP_FUNCTION(ECIES_CIPHERTEXT_VALUE)
 int i2d_ECIESParameters(const ECIES_PARAMS *param, unsigned char **out)
 {
 	int ret = 0;
-	ECIES_PARAMETERS *tmp = NULL;
-	int sym_nid = NID_xor_in_ecies;
+	ECIES_PARAMETERS *asn1 = NULL;
 
-	if (!param || !param->kdf_md ||
-
-
-	OPENSSL_assert(param);
-	OPENSSL_assert(param->kdf_md);
-	OPENSSL_assert(param->mac_md);
-	OpenSSL_add_all_digests();
-
-	if (!(tmp = ECIES_PARAMETERS_new()))
-		{
-		ECIESerr(ECIES_F_I2D_ECIESPARAMETERS, ERR_R_MALLOC_FAILURE);
-		goto err;
-		}
-
-	if (!(tmp->kdf = X509_ALGOR_new()))
-		{
-		ECIESerr(ECIES_F_I2D_ECIESPARAMETERS, ERR_R_MALLOC_FAILURE);
-		goto err;
-		}
-	if (!X509_ALGOR_set0(tmp->kdf, OBJ_nid2obj(NID_x9_63_kdf),
-V_ASN1_OBJECT, OBJ_nid2obj(EVP_MD_nid(param->kdf_md)))) 
-		{
-		ECIESerr(ECIES_F_I2D_ECIESPARAMETERS, ERR_R_X509_LIB);
-		goto err;
-		}
-
-	if (!(tmp->sym = X509_ALGOR_new()))
-		{
-		ECIESerr(ECIES_F_I2D_ECIESPARAMETERS, ERR_R_MALLOC_FAILURE);
-		goto err;
-		}
-	if (param->sym_cipher)
-		{
-		switch (EVP_CIPHER_nid(param->sym_cipher))
-			{
-			case NID_aes_128_cbc:
-				sym_nid = NID_aes128_cbc_in_ecies;
-				break;
-			case NID_aes_192_cbc:
-				sym_nid = NID_aes192_cbc_in_ecies;
-				break;
-			case NID_aes_256_cbc:
-				sym_nid = NID_aes256_cbc_in_ecies;
-				break;
-			case NID_aes_128_ctr:
-				sym_nid = NID_aes128_ctr_in_ecies;
-				break;
-			case NID_aes_192_ctr:
-				sym_nid = NID_aes192_ctr_in_ecies;
-				break;
-			case NID_aes_256_ctr:
-				sym_nid = NID_aes256_ctr_in_ecies;
-				break;
-			default:
-				ECIESerr(ECIES_F_I2D_ECIESPARAMETERS,
-ERR_R_MALLOC_FAILURE);
-				goto err;
-			}
-		}	
-	if (!X509_ALGOR_set0(tmp->sym, OBJ_nid2obj(sym_nid), V_ASN1_UNDEF,
-NULL))
-		{
-		ECIESerr(ECIES_F_I2D_ECIESPARAMETERS, ERR_R_X509_LIB);
-		goto err;
-		}
-
-	if (!(tmp->mac = X509_ALGOR_new()))
-		{
-		ECIESerr(ECIES_F_I2D_ECIESPARAMETERS, ERR_R_MALLOC_FAILURE);
-		goto err;
-		}
-	if (!X509_ALGOR_set0(tmp->mac, OBJ_nid2obj(NID_hmac_full_ecies),
-V_ASN1_OBJECT, OBJ_nid2obj(EVP_MD_nid(param->mac_md))))
-		{
-		ECIESerr(ECIES_F_I2D_ECIESPARAMETERS, ERR_R_X509_LIB);
-		goto err;
-		}
-	
-	if ((ret = i2d_ECIES_PARAMETERS(tmp, out)) <= 0)
-		{
-		ECIESerr(ECIES_F_I2D_ECIESPARAMETERS, ERR_R_ASN1_LIB);
-		goto err;
-		}
-err:
-	if (tmp)
-		ECIES_PARAMETERS_free(tmp);
-	return ret;
+	if (!(asn1 = ECIES_PARAMETERS_new())) {
+		ECerr(EC_F_I2D_ECIESPARAMETERS, ERR_R_MALLOC_FAILURE);
+		goto end;
 	}
 
-ECIES_PARAMS *d2i_ECIESParameters(ECIES_PARAMS **param, const unsigned char
-**in, long len)
-	{
+	OPENSSL_assert(asn1->kdf && asn1->sym && asn1->mac);
+
+	if (!X509_ALGOR_set0(asn1->kdf, OBJ_nid2obj(param->kdf_nid),
+		V_ASN1_OBJECT, OBJ_nid2obj(EVP_MD_nid(param->kdf_md)))) {
+		ECerr(EC_F_I2D_ECIESPARAMETERS, ERR_R_X509_LIB);
+		goto end;
+	}
+	if (!X509_ALGOR_set0(asn1->sym, OBJ_nid2obj(param->enc_nid),
+		V_ASN1_UNDEF, NULL)) {
+		ECerr(EC_F_I2D_ECIESPARAMETERS, ERR_R_X509_LIB);
+		goto end;
+	}
+	if (param->mac_nid == NID_hmac_full_ecies ||
+		param->mac_nid == NID_hmac_half_ecies) {
+		if (!X509_ALGOR_set0(asn1->mac, OBJ_nid2obj(param->mac_nid),
+			V_ASN1_OBJECT, OBJ_nid2obj(EVP_MD_nid(param->hmac_md)))) {
+			ECerr(EC_F_I2D_ECIESPARAMETERS, ERR_R_MALLOC_FAILURE);
+			goto end;
+		}
+	} else {
+		if (!X509_ALGOR_set0(asn1->mac, OBJ_nid2obj(param->mac_nid),
+			V_ASN1_UNDEF, NULL)) {
+			ECerr(EC_F_I2D_ECIESPARAMETERS, ERR_R_MALLOC_FAILURE);
+			goto end;
+		}
+	}
+
+	if ((ret = i2d_ECIES_PARAMETERS(asn1, out)) <= 0) {
+		ECerr(EC_F_I2D_ECIESPARAMETERS, ERR_R_ASN1_LIB);
+		goto end;
+	}
+
+end:
+	ECIES_PARAMETERS_free(asn1);
+	return ret;
+}
+
+ECIES_PARAMS *d2i_ECIESParameters(ECIES_PARAMS **param,
+	const unsigned char **in, long len)
+{
 	int e = 1;
-	ECIES_PARAMS     *ret = NULL;
-	ECIES_PARAMETERS *tmp = NULL;
-	
-	if (!(ret = OPENSSL_malloc(sizeof(ECIES_PARAMS))))
-		{
-		ECIESerr(ECIES_F_D2I_ECIESPARAMETERS, ERR_R_ASN1_LIB);
-		goto err;
-		}
+	ECIES_PARAMS *ret = NULL;
+	ECIES_PARAMETERS *asn1 = NULL;
 
-	if (!(tmp = d2i_ECIES_PARAMETERS(NULL, in, len)))
-		{
-		ECIESerr(ECIES_F_D2I_ECIESPARAMETERS, ERR_R_ASN1_LIB);
-		goto err;
-		}
-
-	/* get kdf, parameter is hash oid */
-	if (OBJ_obj2nid(tmp->kdf->algorithm) != NID_x9_63_kdf) 
-		{
-		ECIESerr(ECIES_F_D2I_ECIESPARAMETERS, ERR_R_ECIES_LIB);
-		goto err;
-		}
-	if (tmp->kdf->parameter->type != V_ASN1_OBJECT)
-		{
-		ECIESerr(ECIES_F_D2I_ECIESPARAMETERS, ERR_R_ECIES_LIB);
-		goto err;
-		}
+	if (!(ret = OPENSSL_zalloc(sizeof(ECIES_PARAMS)))) {
+		ECerr(EC_F_D2I_ECIESPARAMETERS, ERR_R_ASN1_LIB);
+		goto end;
+	}
+	if (!(asn1 = d2i_ECIES_PARAMETERS(NULL, in, len))) {
+		ECerr(EC_F_D2I_ECIESPARAMETERS, ERR_R_ASN1_LIB);
+		goto end;
+	}
 
 	OpenSSL_add_all_digests();
-	if (!(ret->kdf_md =
-EVP_get_digestbynid(OBJ_obj2nid(tmp->kdf->parameter->value.object))))
-		{
-		ECIESerr(ECIES_F_D2I_ECIESPARAMETERS, ERR_R_ECIES_LIB);
-		goto err;
-		}
 
-	/* get sym, no parameter for iv is zero */
-	switch (OBJ_obj2nid(tmp->sym->algorithm)) {
+	/* kdf */
+	ret->kdf_nid = OBJ_obj2nid(asn1->kdf->algorithm);
+	if (ret->kdf_nid != NID_x9_63_kdf) {
+		ECerr(EC_F_D2I_ECIESPARAMETERS, EC_R_INVALID_ECIES_PARAMETERS);
+		goto end;
+	}
+	if (asn1->kdf->parameter->type != V_ASN1_OBJECT) {
+		ECerr(EC_F_D2I_ECIESPARAMETERS, EC_R_INVALID_ECIES_PARAMETERS);
+		goto end;
+	}
+	if (!(ret->kdf_md = EVP_get_digestbynid(
+		OBJ_obj2nid(asn1->kdf->parameter->value.object)))) {
+		ECerr(EC_F_D2I_ECIESPARAMETERS, EC_R_INVALID_ECIES_PARAMETERS);
+		goto end;
+	}
+
+	/* sym */
+	ret->enc_nid = OBJ_obj2nid(asn1->sym->algorithm);
+	switch (ret->enc_nid) {
 	case NID_xor_in_ecies:
-		ret->sym_cipher = NULL;
-		break;
+	case NID_tdes_cbc_in_ecies:
 	case NID_aes128_cbc_in_ecies:
-		ret->sym_cipher = EVP_aes_128_cbc();
-		break;
 	case NID_aes192_cbc_in_ecies:
-		ret->sym_cipher = EVP_aes_192_cbc();
-		break;
 	case NID_aes256_cbc_in_ecies:
-		ret->sym_cipher = EVP_aes_256_cbc();
-		break;
 	case NID_aes128_ctr_in_ecies:
-		ret->sym_cipher = EVP_aes_128_ctr();
-		break;
 	case NID_aes192_ctr_in_ecies:
-		ret->sym_cipher = EVP_aes_192_ctr();
-		break;
 	case NID_aes256_ctr_in_ecies:
-		ret->sym_cipher = EVP_aes_256_ctr();
 		break;
 	default:
-		goto err;
+		ECerr(EC_F_D2I_ECIESPARAMETERS, EC_R_INVALID_ECIES_PARAMETERS);
+		goto end;
 	}
-	
-	/* get mac, parameter is hash oid */
-	switch (OBJ_obj2nid(tmp->mac->algorithm)) {
+
+	/* mac */
+	ret->mac_nid = OBJ_obj2nid(asn1->mac->algorithm);
+	switch (ret->enc_nid) {
 	case NID_hmac_full_ecies:
-		break;
 	case NID_hmac_half_ecies:
+		if (asn1->mac->parameter->type != V_ASN1_OBJECT) {
+			ECerr(EC_F_D2I_ECIESPARAMETERS, EC_R_INVALID_ECIES_PARAMETERS);
+			goto end;
+		}
+		if (!(ret->hmac_md = EVP_get_digestbynid(
+			OBJ_obj2nid(asn1->mac->parameter->value.object)))) {
+			ECerr(EC_F_D2I_ECIESPARAMETERS, EC_R_INVALID_ECIES_PARAMETERS);
+			goto end;
+		}
+		break;
 	case NID_cmac_aes128_ecies:
 	case NID_cmac_aes192_ecies:
-		goto err;
+	case NID_cmac_aes256_ecies:
 		break;
 	default:
-		goto err;
-		break;
+		ECerr(EC_F_D2I_ECIESPARAMETERS, EC_R_INVALID_ECIES_PARAMETERS);
+		goto end;
 	}
-	if (tmp->mac->parameter->type != V_ASN1_OBJECT)
-		{
-		ECIESerr(ECIES_F_D2I_ECIESPARAMETERS, ERR_R_ECIES_LIB);
-		goto err;
-		}
-	if (!(ret->mac_md = EVP_get_digestbynid(OBJ_obj2nid(
-		tmp->mac->parameter->value.object)))) 
-		{
-		ECIESerr(ECIES_F_D2I_ECIESPARAMETERS, ERR_R_ECIES_LIB);
-		goto err;
-		}
 
 	if (param && *param)
 		OPENSSL_free(*param);
@@ -333,14 +260,12 @@ EVP_get_digestbynid(OBJ_obj2nid(tmp->kdf->parameter->value.object))))
 		*param = ret;
 
 	e = 0;
-err:
-	if (e && ret)
-		{
+end:
+	if (e && ret) {
 		OPENSSL_free(ret);
 		ret = NULL;
-		}
-	if (tmp) ECIES_PARAMETERS_free(tmp);
-	return ret;
 	}
-
+	ECIES_PARAMETERS_free(asn1);
+	return ret;
+}
 
