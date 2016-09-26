@@ -899,19 +899,13 @@ const EVP_CIPHER *EVP_sms4_cfb128(void);
 # define EVP_sms4_cfb EVP_sms4_cfb128
 const EVP_CIPHER *EVP_sms4_ofb(void);
 const EVP_CIPHER *EVP_sms4_ctr(void);
-const EVP_CIPHER *EVP_sms4_ccm(void);
 const EVP_CIPHER *EVP_sms4_gcm(void);
-const EVP_CIPHER *EVP_sms4_xts(void);
 const EVP_CIPHER *EVP_sms4_wrap(void);
-const EVP_CIPHER *EVP_sms4_ffx(void);
 # define EVP_sm4_ecb EVP_sms4_ecb
 # define EVP_sm4_cbc EVP_sms4_cbc
 # define EVP_sm4_cfb EVP_sms4_cfb
 # define EVP_sm4_ofb EVP_sms4_ofb
 const EVP_CIPHER *EVP_zuc(void);
-const EVP_CIPHER *EVP_aes_128_ffx(void);
-const EVP_CIPHER *EVP_aes_192_ffx(void);
-const EVP_CIPHER *EVP_aes_256_ffx(void);
 # endif
 
 # if OPENSSL_API_COMPAT < 0x10100000L

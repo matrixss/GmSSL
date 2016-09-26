@@ -72,12 +72,44 @@ int ECIES_PARAMS_init_with_recommended(ECIES_PARAMS *param)
 		return 0;
 	}
 
+	memset(param, 0, sizeof(*param));
 	param->kdf_nid = NID_x9_63_kdf;
 	param->kdf_md = EVP_sha256();
 	param->enc_nid = NID_xor_in_ecies;
 	param->mac_nid = NID_hmac_full_ecies;
 	param->hmac_md = EVP_sha256();
 	return 1;
+}
+
+ECIES_PARAMS *ECIES_PARAMS_new(void)
+{
+	ECIES_PARAMS *ret = NULL;
+
+	if (!(ret = OPENSSL_malloc(sizeof(*ret)))) {
+		return NULL;
+	}
+
+	ECIES_PARAMS_init_with_recommended(ret);
+	return ret;
+}
+
+ECIES_PARAMS *ECIES_PARAMS_dup(const ECIES_PARAMS *param)
+{
+	ECIES_PARAMS *ret = NULL;
+
+	if (!(ret = OPENSSL_zalloc(sizeof(*ret)))) {
+		return NULL;
+	}
+
+	/* check param */
+
+	memcpy(ret, param, sizeof(*param));
+	return ret;
+}
+
+void ECIES_PARAMS_free(ECIES_PARAMS *param)
+{
+	OPENSSL_free(param);
 }
 
 KDF_FUNC ECIES_PARAMS_get_kdf(const ECIES_PARAMS *param)

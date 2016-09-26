@@ -1,3 +1,51 @@
+/* ====================================================================
+ * Copyright (c) 2014 - 2016 The GmSSL Project.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *
+ * 3. All advertising materials mentioning features or use of this
+ *    software must display the following acknowledgment:
+ *    "This product includes software developed by the GmSSL Project.
+ *    (http://gmssl.org/)"
+ *
+ * 4. The name "GmSSL Project" must not be used to endorse or promote
+ *    products derived from this software without prior written
+ *    permission. For written permission, please contact
+ *    guanzhi1980@gmail.com.
+ *
+ * 5. Products derived from this software may not be called "GmSSL"
+ *    nor may "GmSSL" appear in their names without prior written
+ *    permission of the GmSSL Project.
+ *
+ * 6. Redistributions of any form whatsoever must retain the following
+ *    acknowledgment:
+ *    "This product includes software developed by the GmSSL Project
+ *    (http://gmssl.org/)"
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE GmSSL PROJECT ``AS IS'' AND ANY
+ * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE GmSSL PROJECT OR
+ * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+ * OF THE POSSIBILITY OF SUCH DAMAGE.
+ * ====================================================================
+ */
 /*
  * Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
  *
@@ -12,6 +60,10 @@
 #include <openssl/asn1t.h>
 #include <openssl/x509.h>
 #include <openssl/ec.h>
+#ifndef NO_GMSSL
+#include <openssl/sm2.h>
+#include <openssl/ecies.h>
+#endif
 #include "ec_lcl.h"
 #include <openssl/evp.h>
 #include "internal/evp_int.h"
@@ -36,6 +88,14 @@ typedef struct {
     size_t kdf_ukmlen;
     /* KDF output length */
     size_t kdf_outlen;
+#ifndef NO_GMSSL
+    int scheme;
+    union {
+        void *ptr;
+        ECIES_PARAMS *ecies;
+        SM2_ENC_PARAMS *sm2;
+    } enc_params;
+#endif
 } EC_PKEY_CTX;
 
 static int pkey_ec_init(EVP_PKEY_CTX *ctx)
@@ -81,6 +141,25 @@ static int pkey_ec_copy(EVP_PKEY_CTX *dst, EVP_PKEY_CTX *src)
     } else
         dctx->kdf_ukm = NULL;
     dctx->kdf_ukmlen = sctx->kdf_ukmlen;
+#ifndef NO_GMSSL
+    dctx->scheme = sctx->scheme;
+    if (dctx->enc_params.ptr) {
+        if (dctx->scheme == NID_secg_scheme) {
+            dctx->enc_params.ecies = ECIES_PARAMS_dup(sctx->enc_params.ecies);
+            if (!dctx->enc_params.ecies) {
+                return 0;
+            }
+        } else if (dctx->scheme == NID_sm_scheme) {
+            dctx->enc_params.sm2 = SM2_ENC_PARAMS_dup(sctx->enc_params.sm2);
+            if (!dctx->enc_params.sm2) {
+                return 0;
+            }
+        } else {
+            ECerr(EC_F_PKEY_EC_COPY, EC_R_INVALID_EC_SCHEME);
+            return 0;
+        }
+    }
+#endif
     return 1;
 }
 
@@ -91,6 +170,17 @@ static void pkey_ec_cleanup(EVP_PKEY_CTX *ctx)
         EC_GROUP_free(dctx->gen_group);
         EC_KEY_free(dctx->co_key);
         OPENSSL_free(dctx->kdf_ukm);
+#ifndef NO_GMSSL
+        if (dctx->enc_params.ptr) {
+            if (dctx->scheme == NID_secg_scheme) {
+                ECIES_PARAMS_free(dctx->enc_params.ecies);
+            } else if (dctx->scheme == NID_sm_scheme) {
+                SM2_ENC_PARAMS_free(dctx->enc_params.sm2);
+            } else {
+                ECerr(EC_F_PKEY_EC_CLEANUP, EC_R_INVALID_EC_SCHEME);
+            }
+        }
+#endif
         OPENSSL_free(dctx);
     }
 }
@@ -114,9 +204,24 @@ static int pkey_ec_sign(EVP_PKEY_CTX *ctx, unsigned char *sig, size_t *siglen,
     if (dctx->md)
         type = EVP_MD_type(dctx->md);
     else
+#ifndef NO_GMSSL
+        type = NID_sm3;
+#else
         type = NID_sha1;
+#endif
 
+#ifndef NO_GMSSL
+    if (dctx->scheme == NID_sm_scheme) {
+        ret = SM2_sign(type, tbs, tbslen, sig, &sltmp, ec);
+    } else if (dctx->scheme == NID_secg_scheme) {
+        ret = ECDSA_sign(type, tbs, tbslen, sig, &sltmp, ec);
+    } else {
+        ECerr(EC_F_PKEY_EC_SIGN, EC_R_INVALID_EC_SCHEME);
+        ret = 0;
+    }
+#else
     ret = ECDSA_sign(type, tbs, tbslen, sig, &sltmp, ec);
+#endif
 
     if (ret <= 0)
         return ret;
@@ -135,12 +240,95 @@ static int pkey_ec_verify(EVP_PKEY_CTX *ctx,
     if (dctx->md)
         type = EVP_MD_type(dctx->md);
     else
+#ifndef NO_GMSSL
+        type = NID_sm3;
+#else
         type = NID_sha1;
+#endif
 
+#ifndef NO_GMSSL
+    if (dctx->scheme == NID_sm_scheme) {
+        ret = SM2_verify(type, tbs, tbslen, sig, siglen, ec);
+    } else if (dctx->scheme == NID_secg_scheme) {
+        ret = ECDSA_verify(type, tbs, tbslen, sig, siglen, ec);
+    } else {
+        ECerr(EC_F_PKEY_EC_VERIFY, EC_R_INVALID_EC_SCHEME);
+        ret = -1;
+    }
+#else
     ret = ECDSA_verify(type, tbs, tbslen, sig, siglen, ec);
+#endif
 
     return ret;
 }
+
+#ifndef NO_GMSSL
+static int pkey_ec_encrypt(EVP_PKEY_CTX *ctx, unsigned char *out, size_t *outlen,
+	const unsigned char *in, size_t inlen)
+{
+    EC_PKEY_CTX *dctx = ctx->data;
+    EC_KEY *ec_key = ctx->pkey->pkey.ec;
+
+    if (dctx->scheme == NID_sm_scheme) {
+        if (dctx->enc_params.sm2) {
+            if (!SM2_encrypt(dctx->enc_params.sm2, in, inlen, out, outlen, ec_key)) {
+                ECerr(EC_F_PKEY_EC_ENCRYPT, EC_R_SM2_ENCRYPT_FAILED);
+                return 0;
+            }
+        } else {
+            if (!SM2_encrypt_with_recommended(in, inlen, out, outlen, ec_key)) {
+                ECerr(EC_F_PKEY_EC_ENCRYPT, EC_R_SM2_ENCRYPT_FAILED);
+                return 0;
+            }
+        }
+    } else if (dctx->scheme == NID_secg_scheme) {
+        if (dctx->enc_params.ecies) {
+            if (!ECIES_encrypt(dctx->enc_params.ecies, in, inlen, out, outlen, ec_key)) {
+                ECerr(EC_F_PKEY_EC_ENCRYPT, EC_R_ECIES_ENCRYPT_FAILED);
+                return 0;
+            }
+        } else {
+            if (!ECIES_encrypt_with_recommended(in, inlen, out, outlen, ec_key)) {
+                ECerr(EC_F_PKEY_EC_ENCRYPT, EC_R_ECIES_ENCRYPT_FAILED);
+                return 0;
+            }
+        }
+    } else {
+        ECerr(EC_F_PKEY_EC_ENCRYPT, EC_R_INVALID_EC_SCHEME);
+        return 0;
+    }
+
+    return 1;
+}
+
+static int pkey_ec_decrypt(EVP_PKEY_CTX *ctx, unsigned char *out, size_t *outlen,
+	const unsigned char *in, size_t inlen)
+{
+    EC_PKEY_CTX *dctx = ctx->data;
+    EC_KEY *ec_key = ctx->pkey->pkey.ec;
+
+    if (dctx->scheme == NID_sm_scheme) {
+        if (!dctx->enc_params.sm2) {
+        }
+        if (!SM2_decrypt(dctx->enc_params.sm2, in, inlen, out, outlen, ec_key)) {
+            ECerr(EC_F_PKEY_EC_DECRYPT, EC_R_SM2_DECRYPT_FAILED);
+            return 0;
+        }
+    } else if (dctx->scheme == NID_secg_scheme) {
+        if (!dctx->enc_params.ecies) {
+        }
+        if (!ECIES_decrypt(dctx->enc_params.ecies, in, inlen, out, outlen, ec_key)) {
+            ECerr(EC_F_PKEY_EC_DECRYPT, EC_R_ECIES_DECRYPT_FAILED);
+            return 0;
+        }
+    } else {
+        ECerr(EC_F_PKEY_EC_DECRYPT, EC_R_INVALID_EC_SCHEME);
+        return 0;
+    }
+
+    return 1;
+}
+#endif
 
 #ifndef OPENSSL_NO_EC
 static int pkey_ec_derive(EVP_PKEY_CTX *ctx, unsigned char *key,
@@ -273,6 +461,50 @@ static int pkey_ec_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
         return 1;
 #endif
 
+#ifndef NO_GMSSL
+    case EVP_PKEY_CTRL_SM2_ID:
+	/*
+        if (!SM2_set_id(ctx->pkey->pkey.ec, p2, dctx->md)) {
+            ECerr(EC_F_PKEY_EC_CTRL, EC_R_SET_SM2_ID_FAILED);
+            return 0;
+        }
+	*/
+        return 1;
+
+/*
+    case EVP_PKEY_CTRL_SM2_ID_DIGEST:
+        if (!SM2_set_id_digest(ctx->pkey->pkey.ec, p2)) {
+            ECerr(EC_F_PKEY_EC_CTRL, EC_R_SET_SM2_ID_DIGEST_FAILED);
+            return 0;
+        }
+        return 1;
+
+    case EVP_PKEY_CTRL_EC_ENCRYPT_PARAMS:
+        if (dctx->scheme == NID_sm_scheme) {
+            dctx->enc_params.sm2 = SM2_ENC_PARAMS_dup((SM2_ENC_PARAMS *)p2);
+        } else if (dctx->scheme == NID_secg_scheme) {
+            dctx->enc_params.ecies = ECIES_PARAMS_dup((ECIES_PARAMS *)p2);
+        } else {
+            return 0;
+        }
+        return 1;
+
+    case EVP_PKEY_CTRL_GET_EC_ENCRYPT_PARAMS:
+        if (!dctx->enc_params.ptr) {
+            *(void **)p2 = NULL;
+            return 1;
+        }
+        if (dctx->scheme == NID_sm_scheme) {
+            *(SM2_ENC_PARAMS **)p2 = dctx->enc_params.sm2;
+        } else if (dctx->scheme == NID_secg_scheme) {
+            *(ECIES_PARAMS **)p2 = dctx->enc_params.ecies;
+        } else {
+            return 0;
+        }
+        return 1;
+*/
+#endif
+
     case EVP_PKEY_CTRL_EC_KDF_TYPE:
         if (p1 == -2)
             return dctx->kdf_type;
@@ -314,6 +546,9 @@ static int pkey_ec_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
 
     case EVP_PKEY_CTRL_MD:
         if (EVP_MD_type((const EVP_MD *)p2) != NID_sha1 &&
+#ifndef NO_GMSSL
+            EVP_MD_type((const EVP_MD *)p2) != NID_sm3 &&
+#endif
             EVP_MD_type((const EVP_MD *)p2) != NID_ecdsa_with_SHA1 &&
             EVP_MD_type((const EVP_MD *)p2) != NID_sha224 &&
             EVP_MD_type((const EVP_MD *)p2) != NID_sha256 &&
@@ -366,6 +601,20 @@ static int pkey_ec_ctrl_str(EVP_PKEY_CTX *ctx,
         else
             return -2;
         return EVP_PKEY_CTX_set_ec_param_enc(ctx, param_enc);
+#ifndef NO_GMSSL
+    } else if (!strcmp(type, "sm2_id")) {
+        return EVP_PKEY_CTX_set_sm2_id(ctx, value);
+    } else if (!strcmp(type, "ec_scheme")) {
+        int scheme;
+        if (!strcmp(value, "secg")) {
+            scheme = NID_secg_scheme;
+        } else if (!strcmp(value, "sm")) {
+            scheme = NID_sm_scheme;
+        } else {
+            return -2;
+        }
+        return EVP_PKEY_CTX_set_ec_scheme(ctx, scheme);
+#endif
     } else if (strcmp(type, "ecdh_kdf_md") == 0) {
         const EVP_MD *md;
         if ((md = EVP_get_digestbyname(value)) == NULL) {
@@ -448,9 +697,15 @@ const EVP_PKEY_METHOD ec_pkey_meth = {
 
     0, 0, 0, 0,
 
+#ifndef NO_GMSSL
+    0, pkey_ec_encrypt,
+
+    0, pkey_ec_decrypt,
+#else
     0, 0,
 
     0, 0,
+#endif
 
     0,
 #ifndef OPENSSL_NO_EC

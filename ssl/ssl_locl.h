@@ -245,6 +245,10 @@
 # define SSL_aSRP                0x00000040U
 /* GOST R 34.10-2012 signature auth */
 # define SSL_aGOST12             0x00000080U
+# ifndef NO_GMSSL
+/* GM/T 0024-2014 */
+# define SSL_aSM2                0x00000100U
+# endif
 
 /* Bits for algorithm_enc (symmetric encryption) */
 # define SSL_DES                 0x00000001U
@@ -267,6 +271,11 @@
 # define SSL_AES256CCM8          0x00020000U
 # define SSL_eGOST2814789CNT12   0x00040000U
 # define SSL_CHACHA20POLY1305    0x00080000U
+# ifndef NO_GMSSL
+# define SSL_SM4                 0x00100000U
+# define SSL_SM4GCM              0x00200000U
+# endif
+
 
 # define SSL_AESGCM              (SSL_AES128GCM | SSL_AES256GCM)
 # define SSL_AESCCM              (SSL_AES128CCM | SSL_AES256CCM | SSL_AES128CCM8 | SSL_AES256CCM8)
@@ -278,8 +287,8 @@
 
 # define SSL_MD5                 0x00000001U
 # define SSL_SHA1                0x00000002U
-# define SSL_GOST94      0x00000004U
-# define SSL_GOST89MAC   0x00000008U
+# define SSL_GOST94              0x00000004U
+# define SSL_GOST89MAC           0x00000008U
 # define SSL_SHA256              0x00000010U
 # define SSL_SHA384              0x00000020U
 /* Not a real MAC, just an indication it is part of cipher */
@@ -287,6 +296,9 @@
 # define SSL_GOST12_256          0x00000080U
 # define SSL_GOST89MAC12         0x00000100U
 # define SSL_GOST12_512          0x00000200U
+# ifndef NO_GMSSL
+# define SSL_SM3                 0x00000400U
+# endif
 
 /*
  * When adding new digest in the ssl_ciph.c and increment SSL_MD_NUM_IDX make
@@ -305,7 +317,12 @@
 # define SSL_MD_MD5_SHA1_IDX 9
 # define SSL_MD_SHA224_IDX 10
 # define SSL_MD_SHA512_IDX 11
+# ifndef NO_GMSSL
+# define SSL_MD_SM3_IDX 12
+# define SSL_MAX_DIGEST 13
+# else
 # define SSL_MAX_DIGEST 12
+# endif
 
 /* Bits for algorithm2 (handshake digests and other extra flags) */
 
@@ -318,6 +335,7 @@
 # define SSL_HANDSHAKE_MAC_GOST12_256 SSL_MD_GOST12_256_IDX
 # define SSL_HANDSHAKE_MAC_GOST12_512 SSL_MD_GOST12_512_IDX
 # define SSL_HANDSHAKE_MAC_DEFAULT  SSL_HANDSHAKE_MAC_MD5_SHA1
+//FIXME: GMSSL
 
 /* Bits 8-15 bits are PRF */
 # define TLS1_PRF_DGST_SHIFT 8

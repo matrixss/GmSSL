@@ -1342,6 +1342,33 @@ void EC_KEY_METHOD_get_verify(EC_KEY_METHOD *meth,
                                 EVP_PKEY_OP_DERIVE, \
                                 EVP_PKEY_CTRL_GET_EC_KDF_UKM, 0, (void *)p)
 
+# ifndef NO_GMSSL
+# define EVP_PKEY_CTX_set_ec_scheme(ctx, nid) \
+        EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_EC, \
+                                EVP_PKEY_OP_TYPE_NOGEN, \
+                                EVP_PKEY_CTRL_EC_SCHEME, nid, NULL)
+
+# define EVP_PKEY_CTX_get_ec_scheme(ctx) \
+        EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_EC, \
+                                EVP_PKEY_OP_TYPE_NOGEN, \
+                                EVP_PKEY_CTRL_EC_SCHEME, -2, NULL)
+
+# define EVP_PKEY_CTX_set_sm2_id(ctx, id) \
+        EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_EC, \
+                                EVP_PKEY_OP_TYPE_SIG|EVP_PKEY_OP_DERIVE, \
+                                EVP_PKEY_CTRL_SM2_ID, 0, (void *)id)
+
+# define EVP_PKEY_CTX_set_sm2_id_digest(ctx, digest) \
+        EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_EC, \
+                                EVP_PKEY_OP_TYPE_SIG|EVP_PKEY_OP_DERIVE, \
+                                EVP_PKEY_CTRL_SM2_ID_DIGEST, (void *)digest)
+
+# define EVP_PKEY_CTX_get_sm2_id_digest(ctx, pdigest) \
+        EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_EC, \
+                                EVP_PKEY_OP_TYPE_SIG|EVP_PKEY_OP_DERIVE, \
+                                EVP_PKEY_CTRL_GET_SM2_ID_DIGEST, 0, (void *)pdigest)
+# endif /* NO_GMSSL */
+
 # define EVP_PKEY_CTRL_EC_PARAMGEN_CURVE_NID             (EVP_PKEY_ALG_CTRL + 1)
 # define EVP_PKEY_CTRL_EC_PARAM_ENC                      (EVP_PKEY_ALG_CTRL + 2)
 # define EVP_PKEY_CTRL_EC_ECDH_COFACTOR                  (EVP_PKEY_ALG_CTRL + 3)
@@ -1352,6 +1379,15 @@ void EC_KEY_METHOD_get_verify(EC_KEY_METHOD *meth,
 # define EVP_PKEY_CTRL_GET_EC_KDF_OUTLEN                 (EVP_PKEY_ALG_CTRL + 8)
 # define EVP_PKEY_CTRL_EC_KDF_UKM                        (EVP_PKEY_ALG_CTRL + 9)
 # define EVP_PKEY_CTRL_GET_EC_KDF_UKM                    (EVP_PKEY_ALG_CTRL + 10)
+# ifndef NO_GMSSL
+# define EVP_PKEY_CTRL_EC_SCHEME                         (EVP_PKEY_ALG_CTRL + 11)
+# define EVP_PKEY_CTRL_SM2_ID                            (EVP_PKEY_ALG_CTRL + 12)
+# define EVP_PKEY_CTRL_SM2_ID_DIGEST                     (EVP_PKEY_ALG_CTRL + 13)
+# define EVP_PKEY_CTRL_GET_SM2_ID_DIGEST                 (EVP_PKEY_ALG_CTRL + 14)
+# define EVP_PKEY_CTRL_EC_ENCRYPT_PARAMS                 (EVP_PKEY_ALG_CTRL + 15)
+# define EVP_PKEY_CTRL_GET_EC_ENCRYPT_PARAMS             (EVP_PKEY_ALG_CTRL + 16)
+# endif
+
 /* KDF types */
 # define EVP_PKEY_ECDH_KDF_NONE                          1
 # define EVP_PKEY_ECDH_KDF_X9_62                         2
@@ -1518,12 +1554,17 @@ int ERR_load_EC_strings(void);
 # define EC_F_OSSL_ECDSA_SIGN_SIG                         249
 # define EC_F_OSSL_ECDSA_VERIFY_SIG                       250
 # define EC_F_PKEY_ECX_DERIVE                             269
+# define EC_F_PKEY_EC_CLEANUP                             299
+# define EC_F_PKEY_EC_COPY                                300
 # define EC_F_PKEY_EC_CTRL                                197
 # define EC_F_PKEY_EC_CTRL_STR                            198
+# define EC_F_PKEY_EC_DECRYPT                             302
 # define EC_F_PKEY_EC_DERIVE                              217
+# define EC_F_PKEY_EC_ENCRYPT                             303
 # define EC_F_PKEY_EC_KEYGEN                              199
 # define EC_F_PKEY_EC_PARAMGEN                            219
 # define EC_F_PKEY_EC_SIGN                                218
+# define EC_F_PKEY_EC_VERIFY                              301
 # define EC_F_SM2_CIPHERTEXT_VALUE_DECODE                 290
 # define EC_F_SM2_CIPHERTEXT_VALUE_ENCODE                 291
 # define EC_F_SM2_CIPHERTEXT_VALUE_NEW                    292
@@ -1535,7 +1576,9 @@ int ERR_load_EC_strings(void);
 # define EC_F_SM2_DO_SIGN                                 279
 # define EC_F_SM2_DO_VERIFY                               280
 # define EC_F_SM2_ENCRYPT                                 297
+# define EC_F_SM2_ENC_PARAMS_DUP                          304
 # define EC_F_SM2_ENC_PARAMS_INIT_WITH_RECOMMENDED        298
+# define EC_F_SM2_ENC_PARAMS_NEW                          305
 # define EC_F_SM2_GET_PUBLIC_KEY_DATA                     281
 # define EC_F_SM2_KAP_COMPUTE_KEY                         282
 # define EC_F_SM2_KAP_CTX_INIT                            283
@@ -1560,7 +1603,9 @@ int ERR_load_EC_strings(void);
 # define EC_R_DISCRIMINANT_IS_ZERO                        118
 # define EC_R_ECDH_FAILED                                 164
 # define EC_R_ECDH_FAILURE                                165
+# define EC_R_ECIES_DECRYPT_FAILED                        191
 # define EC_R_ECIES_DECRYPT_INIT_FAILURE                  166
+# define EC_R_ECIES_ENCRYPT_FAILED                        192
 # define EC_R_ECIES_VERIFY_MAC_FAILURE                    167
 # define EC_R_EC_GROUP_NEW_BY_NAME_FAILURE                119
 # define EC_R_ENCRYPT_FAILED                              168
@@ -1586,6 +1631,7 @@ int ERR_load_EC_strings(void);
 # define EC_R_INVALID_ECIES_CIPHERTEXT                    173
 # define EC_R_INVALID_ECIES_PARAMETERS                    174
 # define EC_R_INVALID_EC_KEY                              182
+# define EC_R_INVALID_EC_SCHEME                           188
 # define EC_R_INVALID_ENCODING                            102
 # define EC_R_INVALID_FIELD                               103
 # define EC_R_INVALID_FORM                                104
@@ -1620,8 +1666,12 @@ int ERR_load_EC_strings(void);
 # define EC_R_POINT_IS_NOT_ON_CURVE                       107
 # define EC_R_POINT_NEW_FAILED                            187
 # define EC_R_RANDOM_NUMBER_GENERATION_FAILED             158
+# define EC_R_SET_SM2_ID_DIGEST_FAILED                    189
+# define EC_R_SET_SM2_ID_FAILED                           190
 # define EC_R_SHARED_INFO_ERROR                           150
 # define EC_R_SLOT_FULL                                   108
+# define EC_R_SM2_DECRYPT_FAILED                          193
+# define EC_R_SM2_ENCRYPT_FAILED                          194
 # define EC_R_SM2_KAP_NOT_INITED                          176
 # define EC_R_UNDEFINED_GENERATOR                         113
 # define EC_R_UNDEFINED_ORDER                             128

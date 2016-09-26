@@ -171,6 +171,13 @@ extern "C" {
 # define SSL_TXT_TLSV1_1         "TLSv1.1"
 # define SSL_TXT_TLSV1_2         "TLSv1.2"
 
+# ifndef NO_GMSSL
+# define SSL_TXT_SM2             "SM2"
+# define SSL_TXT_SM3             "SM3"
+# define SSL_TXT_SM4             "SM4"
+# define SSL_TXT_SM4_GCM         "SM4GCM"
+# endif
+
 # define SSL_TXT_ALL             "ALL"
 
 /*-

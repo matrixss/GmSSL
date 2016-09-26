@@ -2718,6 +2718,36 @@ static SSL_CIPHER ssl3_ciphers[] = {
 
 #endif                          /* OPENSSL_NO_WEAK_SSL_CIPHERS */
 
+#ifndef NO_GMSSL
+    {
+     1,
+     TLS1_TXT_ECDHE_SM2_WITH_SM4_CBC_SM3,
+     TLS1_CK_ECDHE_SM2_WITH_SM4_CBC_SM3,
+     SSL_kEECDH,
+     SSL_aSM2,
+     SSL_SM4,
+     SSL_SM3,
+     SSL_TLSV1_2,
+     SSL_NOT_EXP|SSL_HIGH,
+     SSL_HANDSHAKE_MAC_DEFAULT|TLS1_PRF,
+     128,
+     128,
+     },
+    {
+     1,
+     TLS1_TXT_ECDHE_SM2_WITH_SM4_GCM,
+     TLS1_CK_ECDHE_SM2_WITH_SM4_GCM,
+     SSL_kSM2,
+     SSL_aSM2,
+     SSL_SM4,
+     SSL_SM3,
+     SSL_TLSV1_2,
+     SSL_NOT_EXP|SSL_HIGH,
+     SSL_HANDSHAKE_MAC_DEFAULT|TLS1_PRF,
+     128,
+     128,
+    },
+#endif
 };
 
 static int cipher_compare(const void *a, const void *b)

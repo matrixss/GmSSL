@@ -49,15 +49,15 @@
  */
 
 #include <stdio.h>
-#ifndef NO_GMSSL
 
 #include <openssl/evp.h>
-#include <openssl/objects.h>
-#include <openssl/crypto.h>
-#include "evp_locl.h"
-#include "../modes/modes_lcl.h"
 #include <openssl/sms4.h>
+#include <openssl/crypto.h>
+#include <openssl/objects.h>
+#include "evp_locl.h"
 # include "internal/evp_int.h"
+#include "../modes/modes_lcl.h"
+
 
 typedef struct {
 	sms4_key_t ks;
@@ -290,18 +290,8 @@ const EVP_CIPHER *EVP_sms4_wrap(void)
 	return &sms4_wrap;
 }
 
-const EVP_CIPHER *EVP_sms4_ccm(void)
-{
-	return NULL;
-}
-
 const EVP_CIPHER *EVP_sms4_gcm(void)
 {
 	return NULL;
 }
 
-const EVP_CIPHER *EVP_sms4_xts(void)
-{
-	return NULL;
-}
-#endif

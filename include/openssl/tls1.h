@@ -599,6 +599,12 @@ SSL_CTX_callback_ctrl(ssl,SSL_CTRL_SET_TLSEXT_TICKET_KEY_CB,(void (*)(void))cb)
 # define TLS1_CK_DHE_PSK_WITH_CHACHA20_POLY1305           0x0300CCAD
 # define TLS1_CK_RSA_PSK_WITH_CHACHA20_POLY1305           0x0300CCAE
 
+# ifndef NO_GMSSL
+/* TLS 1.2 with SM2/SM3/SM4 */
+# define TLS1_CK_ECDHE_SM2_WITH_SM4_CBC_SM3               0x04000001
+# define TLS1_CK_ECDHE_SM2_WITH_SM4_GCM                   0x04000002
+# endif
+
 /*
  * XXX Backward compatibility alert: Older versions of OpenSSL gave some DHE
  * ciphers names with "EDH" instead of "DHE".  Going forward, we should be
@@ -867,6 +873,11 @@ SSL_CTX_callback_ctrl(ssl,SSL_CTRL_SET_TLSEXT_TICKET_KEY_CB,(void (*)(void))cb)
 # define TLS1_TXT_ECDHE_PSK_WITH_CHACHA20_POLY1305         "ECDHE-PSK-CHACHA20-POLY1305"
 # define TLS1_TXT_DHE_PSK_WITH_CHACHA20_POLY1305           "DHE-PSK-CHACHA20-POLY1305"
 # define TLS1_TXT_RSA_PSK_WITH_CHACHA20_POLY1305           "RSA-PSK-CHACHA20-POLY1305"
+
+# ifndef NO_GMSSL
+# define TLS1_TXT_ECDHE_SM2_WITH_SM4_CBC_SM3               "ECDHE-SM2-SM4-SM3"
+# define TLS1_TXT_ECDHE_SM2_WITH_SM4_GCM                   "ECDHE-SM2-SM4-GCM"
+# endif
 
 # define TLS_CT_RSA_SIGN                 1
 # define TLS_CT_DSS_SIGN                 2

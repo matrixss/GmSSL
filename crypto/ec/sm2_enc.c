@@ -1,5 +1,4 @@
-/* crypto/ec/sm2_enc.c */
-/* ====================================================================
+/*
  * Copyright (c) 2015 - 2016 The GmSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,8 +44,6 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
  * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
  */
 
 
@@ -59,6 +56,55 @@
 #include <openssl/rand.h>
 #include <openssl/kdf.h>
 #include "internal/o_str.h"
+
+SM2_ENC_PARAMS *SM2_ENC_PARAMS_new(void)
+{
+	SM2_ENC_PARAMS *ret = NULL;
+
+	if (!(ret = OPENSSL_zalloc(sizeof(*ret)))) {
+		ECerr(EC_F_SM2_ENC_PARAMS_NEW, ERR_R_MALLOC_FAILURE);
+		return NULL;
+	}
+
+	SM2_ENC_PARAMS_init_with_recommended(ret);
+	return ret;
+}
+
+SM2_ENC_PARAMS *SM2_ENC_PARAMS_dup(const SM2_ENC_PARAMS *param)
+{
+	SM2_ENC_PARAMS *ret = NULL;
+
+	if (!param) {
+		ECerr(EC_F_SM2_ENC_PARAMS_DUP, EC_R_NULL_ARGUMENT);
+		return NULL;
+	}
+	if (!(ret = OPENSSL_memdup(param, sizeof(*param)))) {
+		ECerr(EC_F_SM2_ENC_PARAMS_DUP, ERR_R_MALLOC_FAILURE);
+		return NULL;
+	}
+
+	return ret;
+}
+
+int SM2_ENC_PARAMS_init_with_recommended(SM2_ENC_PARAMS *params)
+{
+	if (!params) {
+		ECerr(EC_F_SM2_ENC_PARAMS_INIT_WITH_RECOMMENDED,
+			EC_R_NULL_ARGUMENT);
+		return 0;
+	}
+	params->kdf_md = EVP_sm3();
+	params->mac_md = EVP_sm3();
+	params->point_form = POINT_CONVERSION_UNCOMPRESSED;
+	return 1;
+}
+
+void SM2_ENC_PARAMS_free(SM2_ENC_PARAMS *param)
+{
+	OPENSSL_free(param);
+}
+
+
 
 int SM2_CIPHERTEXT_VALUE_size(const EC_GROUP *group,
 	const SM2_ENC_PARAMS *params, size_t mlen)
@@ -275,8 +321,8 @@ end:
 }
 
 int SM2_encrypt(const SM2_ENC_PARAMS *params,
-	unsigned char *out, size_t *outlen,
 	const unsigned char *in, size_t inlen,
+	unsigned char *out, size_t *outlen,
 	EC_KEY *ec_key)
 {
 	int ret = 0;
@@ -315,7 +361,8 @@ end:
 }
 
 SM2_CIPHERTEXT_VALUE *SM2_do_encrypt(const SM2_ENC_PARAMS *params,
-	const unsigned char *in, size_t inlen, EC_KEY *ec_key)
+	const unsigned char *in, size_t inlen,
+	EC_KEY *ec_key)
 {
 	int ok = 0;
 	SM2_CIPHERTEXT_VALUE *cv = NULL;
@@ -439,7 +486,7 @@ SM2_CIPHERTEXT_VALUE *SM2_do_encrypt(const SM2_ENC_PARAMS *params,
 		cv->ciphertext[i] ^= in[i];
 	}
 
-	mactag_size = SM2_ENC_PARAMS_mactag_size(params);
+	mactag_size = EVP_MD_size(param->mac_md);
 	if (mactag_size) {
 
 		/* A7: C3 = Hash(x2 || M || y2) */
@@ -493,8 +540,8 @@ end:
 }
 
 int SM2_decrypt(const SM2_ENC_PARAMS *params,
-	unsigned char *out, size_t *outlen,
 	const unsigned char *in, size_t inlen,
+	unsigned char *out, size_t *outlen,
 	EC_KEY *ec_key)
 {
 	int ret = 0;
@@ -535,7 +582,8 @@ end:
 }
 
 int SM2_do_decrypt(const SM2_ENC_PARAMS *params,
-	const SM2_CIPHERTEXT_VALUE *cv, unsigned char *out, size_t *outlen,
+	const SM2_CIPHERTEXT_VALUE *cv,
+	unsigned char *out, size_t *outlen,
 	EC_KEY *ec_key)
 {
 	int ret = 0;
@@ -583,7 +631,7 @@ int SM2_do_decrypt(const SM2_ENC_PARAMS *params,
 		ECerr(EC_F_SM2_DO_DECRYPT, EC_R_ERROR);
 		goto end;
 	}
-	
+
 	/* init ec domain parameters */
 	if (!EC_GROUP_get_order(ec_group, n, bn_ctx)) {
 		ECerr(EC_F_SM2_DO_DECRYPT, EC_R_ERROR);
@@ -605,7 +653,7 @@ int SM2_do_decrypt(const SM2_ENC_PARAMS *params,
 		goto end;
 	}
 
-	/* B3: compute ECDH [d]C1 = (x2, y2) */	
+	/* B3: compute ECDH [d]C1 = (x2, y2) */
 	if (!EC_POINT_mul(ec_group, point, NULL, cv->ephem_point, pri_key, bn_ctx)) {
 		ECerr(EC_F_SM2_DO_DECRYPT, EC_R_ERROR);
 		goto end;
@@ -629,7 +677,7 @@ int SM2_do_decrypt(const SM2_ENC_PARAMS *params,
 	}
 	*outlen = cv->ciphertext_size;
 
-	mactag_size = SM2_ENC_PARAMS_mactag_size(params);
+	mactag_size = EVP_MD_size(params->mac_md);
 	if (mactag_size) {
 
 		/* B6: check Hash(x2 || M || y2) == C3 */
@@ -677,55 +725,22 @@ end:
 	return ret;
 }
 
-int SM2_ENC_PARAMS_init_with_recommended(SM2_ENC_PARAMS *params)
-{
-	if (!params) {
-		ECerr(EC_F_SM2_ENC_PARAMS_INIT_WITH_RECOMMENDED,
-			EC_R_NULL_ARGUMENT);
-		return 0;
-	}
-	params->kdf_md = EVP_sm3();
-	params->mac_md = EVP_sm3();
-	params->mactag_size = -1;
-	params->point_form = POINT_CONVERSION_UNCOMPRESSED;
-	return 1;
-}
-
-int SM2_encrypt_with_recommended(unsigned char *out, size_t *outlen,
-	const unsigned char *in, size_t inlen, EC_KEY *ec_key)
+int SM2_encrypt_with_recommended(const unsigned char *in, size_t inlen,
+	unsigned char *out, size_t *outlen,
+	EC_KEY *ec_key)
 {
 	SM2_ENC_PARAMS params;
 	SM2_ENC_PARAMS_init_with_recommended(&params);
-	return SM2_encrypt(&params, out, outlen, in, inlen, ec_key);
+	return SM2_encrypt(&params, in, inlen, out, outlen, ec_key);
 }
 
-int SM2_decrypt_with_recommended(unsigned char *out, size_t *outlen,
-	const unsigned char *in, size_t inlen, EC_KEY *ec_key)
+int SM2_decrypt_with_recommended(const unsigned char *in, size_t inlen,
+	unsigned char *out, size_t *outlen,
+	EC_KEY *ec_key)
 {
 	SM2_ENC_PARAMS params;
 	SM2_ENC_PARAMS_init_with_recommended(&params);
-	return SM2_decrypt(&params, out, outlen, in, inlen, ec_key);
+	return SM2_decrypt(&params, in, inlen, out, outlen, ec_key);
 }
 
-int SM2_encrypt_elgamal(unsigned char *out, size_t *outlen,
-	const unsigned char *in, size_t inlen, EC_KEY *ec_key)
-{
-	SM2_ENC_PARAMS params;
-	params.kdf_md = EVP_sm3();
-	params.mac_md = EVP_sm3();
-	params.mactag_size = 0;
-	params.point_form = POINT_CONVERSION_COMPRESSED;
-	return SM2_encrypt(&params, out, outlen, in, inlen, ec_key);
-}
-
-int SM2_decrypt_elgamal(unsigned char *out, size_t *outlen,
-	const unsigned char *in, size_t inlen, EC_KEY *ec_key)
-{
-	SM2_ENC_PARAMS params;
-	params.kdf_md = EVP_sm3();
-	params.mac_md = EVP_sm3();
-	params.mactag_size = 0;
-	params.point_form = POINT_CONVERSION_COMPRESSED;
-	return SM2_decrypt(&params, out, outlen, in, inlen, ec_key);
-}
 

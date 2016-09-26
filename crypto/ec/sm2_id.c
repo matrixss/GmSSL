@@ -64,6 +64,10 @@
 #define EC_MAX_NBYTES  ((OPENSSL_ECC_MAX_FIELD_BITS + 7)/8)
 
 
+
+
+
+
 int SM2_get_public_key_data(EC_KEY *ec_key, unsigned char *out, size_t *outlen)
 {
 	int ret = 0;
@@ -226,4 +230,5 @@ end:
 	EVP_MD_CTX_destroy(md_ctx);
         return ret;
 }
+
 

@@ -47,7 +47,6 @@
  * ====================================================================
  */
 
-
 #ifndef HEADER_SM2_H
 #define HEADER_SM2_H
 
@@ -74,7 +73,6 @@ extern "C" {
 
 #define SM2_ID_DIGEST_LENGTH			32
 
-char *SM2_get0_id(EC_KEY *ec_key);
 int SM2_set_id(EC_KEY *ec_key, const char *id);
 int SM2_compute_id_digest(unsigned char *dgst, const EVP_MD *md,
 	const char *id, EC_KEY *ec_key);
@@ -83,14 +81,14 @@ int SM2_compute_id_digest(unsigned char *dgst, const EVP_MD *md,
 typedef struct sm2_enc_params_st {
 	const EVP_MD *kdf_md;
 	const EVP_MD *mac_md;
-	int mactag_size;
 	point_conversion_form_t point_form;
 } SM2_ENC_PARAMS;
 
-#define SM2_ENC_PARAMS_mactag_size(params) \
-	((params)->mactag_size<0 ? EVP_MD_size((params)->mac_md) : (params->mactag_size))
+SM2_ENC_PARAMS *SM2_ENC_PARAMS_new(void);
+SM2_ENC_PARAMS *SM2_ENC_PARAMS_dup(const SM2_ENC_PARAMS *param);
+int SM2_ENC_PRAAMS_init_with_recommended(SM2_ENC_PARAMS *param);
+void SM2_ENC_PARAMS_free(SM2_ENC_PARAMS *param);
 
-int SM2_ENC_PARAMS_init_with_recommended(SM2_ENC_PARAMS *params);
 
 typedef struct sm2_ciphertext_value_st {
 	EC_POINT *ephem_point;
@@ -120,24 +118,24 @@ int SM2_CIPHERTEXT_VALUE_print(BIO *out, const EC_GROUP *ec_group,
 
 SM2_CIPHERTEXT_VALUE *SM2_do_encrypt(const SM2_ENC_PARAMS *params,
 	const unsigned char *in, size_t inlen, EC_KEY *ec_key);
-//FIXME: output first, and change ECIES
 int SM2_do_decrypt(const SM2_ENC_PARAMS *params,
-	const SM2_CIPHERTEXT_VALUE *cv, unsigned char *out, size_t *outlen,
+	const SM2_CIPHERTEXT_VALUE *in, unsigned char *out, size_t *outlen,
 	EC_KEY *ec_key);
-int SM2_encrypt(const SM2_ENC_PARAMS *params, unsigned char *out, size_t *outlen,
-	const unsigned char *in, size_t inlen, EC_KEY *ec_key);
-int SM2_decrypt(const SM2_ENC_PARAMS *params, unsigned char *out, size_t *outlen,
-	const unsigned char *in, size_t inlen, EC_KEY *ec_key);
+int SM2_encrypt(const SM2_ENC_PARAMS *params,
+	const unsigned char *in, size_t inlen,
+	unsigned char *out, size_t *outlen,
+	EC_KEY *ec_key);
+int SM2_decrypt(const SM2_ENC_PARAMS *params,
+	const unsigned char *in, size_t inlen,
+	unsigned char *out, size_t *outlen,
+	EC_KEY *ec_key);
 int SM2_encrypt_with_recommended(unsigned char *out, size_t *outlen,
-	const unsigned char *in, size_t inlen, EC_KEY *ec_key);
-int SM2_decrypt_with_recommended(unsigned char *out, size_t *outlen,
-	const unsigned char *in, size_t inlen, EC_KEY *ec_key);
-#if 0
-int SM2_encrypt_elgamal(unsigned char *out, size_t *outlen,
-	const unsigned char *in, size_t inlen, EC_KEY *ec_key);
-int SM2_decrypt_elgamal(unsigned char *out, size_t *outlen,
-	const unsigned char *in, size_t inlen, EC_KEY *ec_key);
-#endif
+	const unsigned char *in, size_t inlen,
+	EC_KEY *ec_key);
+int SM2_decrypt_with_recommended(const unsigned char *in, size_t inlen,
+	unsigned char *out, size_t *outlen,
+	EC_KEY *ec_key);
+
 
 int SM2_compute_message_digest(const EVP_MD *id_md, const EVP_MD *msg_md,
 	const void *msg, size_t msglen, unsigned char *dgst,
@@ -194,10 +192,7 @@ typedef struct sm2_kap_ctx_st {
 	EC_POINT *point;
 	unsigned char pt_buf[1 + (OPENSSL_ECC_MAX_FIELD_BITS+7)/4];
 	unsigned char checksum[EVP_MAX_MD_SIZE];
-
 } SM2_KAP_CTX;
-
-
 
 int SM2_KAP_CTX_init(SM2_KAP_CTX *ctx, EC_KEY *ec_key,
 	EC_KEY *remote_pubkey, int is_initiator, int do_checksum);
