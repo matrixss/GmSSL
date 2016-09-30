@@ -97,7 +97,8 @@ typedef struct err_state_st {
 # define ERR_LIB_CPK             53
 # define ERR_LIB_SM9             54
 # define ERR_LIB_GMAPI           55
-# define ERR_LIB_PAILLIER        56
+# define ERR_LIB_PAIRING         56
+# define ERR_LIB_PAILLIER        57
 # endif
 
 # define ERR_LIB_USER            128
@@ -142,6 +143,7 @@ typedef struct err_state_st {
 # define CPKerr(f,r) ERR_PUT_error(ERR_LIB_CPK,(f),(r),OPENSSL_FILE,OPENSSL_LINE)
 # define SM9err(f,r) ERR_PUT_error(ERR_LIB_SM9,(f),(r),OPENSSL_FILE,OPENSSL_LINE)
 # define GMAPIerr(f,r) ERR_PUT_error(ERR_LIB_GMAPI,(f),(r),OPENSSL_FILE,OPENSSL_LINE)
+# define PAIRINGerr(f,r) ERR_PUT_error(ERR_LIB_PAIRING,(f),(r),OPENSSL_FILE,OPENSSL_LINE)
 # define PAILLIERerr(f,r) ERR_PUT_error(ERR_LIB_PAILLIER,(f),(r),OPENSSL_FILE,OPENSSL_LINE)
 # endif
 
@@ -194,7 +196,8 @@ typedef struct err_state_st {
 # define ERR_R_CPK_LIB   ERR_LIB_CPK/* 53 */
 # define ERR_R_SM9_LIB   ERR_LIB_SM9/* 54 */
 # define ERR_R_GMAPI_LIB ERR_LIB_GMAPI/* 55 */
-# define ERR_R_PAILLIER_LIB ERR_LIB_PAILLIER/* 56 */
+# define ERR_R_PAIRING_LIB ERR_LIB_PAIRING/* 56 */
+# define ERR_R_PAILLIER_LIB ERR_LIB_PAILLIER/* 57 */
 # endif
 
 # define ERR_R_NESTED_ASN1_ERROR                 58

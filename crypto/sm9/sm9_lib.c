@@ -51,4 +51,60 @@
 #include <openssl/err.h>
 #include <openssl/sm9.h>
 
+//FIXME: not implemented
+BIGNUM *SM9_hash1(const EVP_MD *md, const unsigned char *z, size_t zlen,
+	const BIGNUM *range)
+{
+	int e = 1;
+	BIGNUM *ret = NULL;
+
+	if (!(ret = BN_new())) {
+		SM9err(SM9_F_SM9_HASH1, ERR_R_MALLOC_FAILURE);
+		return NULL;
+	}
+
+	if (!BN_set_word(ret, 123456)) {
+		SM9err(SM9_F_SM9_HASH1, ERR_R_BN_LIB);
+		goto end;
+	}
+
+	e = 0;
+end:
+	if (e && ret) {
+		BN_free(ret);
+		ret = NULL;
+	}
+	return ret;
+}
+
+//FIXME: not implemented
+BIGNUM *SM9_hash2(const EVP_MD *md, const unsigned char *z, size_t zlen,
+	const BINGUM *range)
+{
+	int e = 1;
+	BIGNUM *ret = NULL;
+
+	if (!(ret = BN_new())) {
+		SM9err(SM9_F_SM9_HASH2, ERR_R_MALLOC_FAILURE);
+		return NULL;
+	}
+
+	if (!BN_set_word(ret, 45678)) {
+		SM9err(SM9_F_SM9_HASH2, ERR_R_BN_LIB);
+		goto end;
+	}
+
+	e = 0;
+end:
+	if (e && ret) {
+		BN_free(ret);
+		ret = NULL;
+	}
+	return ret;
+}
+
+int SM9_check_group(const EC_GROUP *group)
+{
+	return 1;
+}
 

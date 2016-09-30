@@ -129,12 +129,10 @@ int SM2_decrypt(const SM2_ENC_PARAMS *params,
 	const unsigned char *in, size_t inlen,
 	unsigned char *out, size_t *outlen,
 	EC_KEY *ec_key);
-int SM2_encrypt_with_recommended(unsigned char *out, size_t *outlen,
-	const unsigned char *in, size_t inlen,
-	EC_KEY *ec_key);
+int SM2_encrypt_with_recommended(const unsigned char *in, size_t inlen,
+	unsigned char *out, size_t *outlen, EC_KEY *ec_key);
 int SM2_decrypt_with_recommended(const unsigned char *in, size_t inlen,
-	unsigned char *out, size_t *outlen,
-	EC_KEY *ec_key);
+	unsigned char *out, size_t *outlen, EC_KEY *ec_key);
 
 
 int SM2_compute_message_digest(const EVP_MD *id_md, const EVP_MD *msg_md,

@@ -65,26 +65,22 @@
 #include <openssl/sms4.h>
 #include <openssl/sm9.h>
 #include <openssl/ossl_typ.h>
-#include <openssl/skf.h>
 #include <openssl/sdf.h>
 #include "e_sdf_err.c"
 #include "../crypto/ecdsa/ecs_locl.h"
 
-static DEVHANDLE hDev = NULL;
-static HAPPLICATION hApp = NULL;
-static HCONTAINER hContainer = NULL;
-static int isDevAuthenticated = 0;
-static int isPinVerified = 0;
+
+static void *device_handle = NULL;
+static void *session_handle = NULL;
+static int key_index = -1;
+
 
 #define SKF_CMD_SO_PATH			ENGINE_CMD_BASE
 #define SKF_CMD_OPEN_DEV		(ENGINE_CMD_BASE + 1)
 #define SKF_CMD_DEV_AUTH		(ENGINE_CMD_BASE + 2)
-#define SKF_CMD_OPEN_APP		(ENGINE_CMD_BASE + 3)
-#define SKF_CMD_VERIFY_PIN		(ENGINE_CMD_BASE + 4)
-#define SKF_CMD_OPEN_CONTAINER		(ENGINE_CMD_BASE + 5)
 
 static const ENGINE_CMD_DEFN skf_cmd_defns[] = {
-	{SKF_CMD_SO_PATH,
+	{SDF_CMD_SO_PATH,
 	 "SO_PATH",
 	 "Specifies the path to the vendor's SKF shared library",
 	 ENGINE_CMD_FLAG_STRING},
@@ -95,18 +91,6 @@ static const ENGINE_CMD_DEFN skf_cmd_defns[] = {
 	{SKF_CMD_DEV_AUTH,
 	 "DEV_AUTH",
 	 "Authenticate to device with authentication key",
-	 ENGINE_CMD_FLAG_STRING},
-	{SKF_CMD_OPEN_APP,
-	 "OPEN_APP",
-	 "Open application with specified application name",
-	 ENGINE_CMD_FLAG_STRING},
-	{SKF_CMD_VERIFY_PIN,
-	 "VERIFY_PIN",
-	 "Authenticate to application with USER PIN",
-	 ENGINE_CMD_FLAG_STRING},
-	{SKF_CMD_OPEN_CONTAINER,
-	 "OPEN_CONTAINER",
-	 "Open container with specified container name",
 	 ENGINE_CMD_FLAG_STRING},
 	{0, NULL, NULL, 0},
 };
@@ -124,157 +108,6 @@ static int open_dev(void)
 		ESDFerr();
 		return 0;
 	}
-
-	return 1;
-}
-
-static int dev_auth(const char *hexauthkey)
-{
-	int ret = 0;
-	ULONG rv;
-	const EVP_CIPHER *cipher = EVP_sms4_ecb();
-	EVP_CIPHER_CTX *ctx = NULL;
-	unsigned char authkey[EVP_MAX_KEY_LENGTH];
-	unsigned char authrand[SMS4_BLOCK_SIZE];
-	unsigned char authdata[SMS4_BLOCK_SIZE];
-	unsigned int len;
-
-	if (!hDev) {
-		ESKFerr(ESKF_F_DEV_AUTH, ESKF_R_DEV_IS_NOT_CONNECTED);
-		return 0;
-	}
-
-	if (!isDevAuthenticated) {
-		ESKFerr(ESKF_F_DEV_AUTH, ESKF_R_DEV_ALREADY_AUTHENTICATED);
-		return 0;
-	}
-
-	len = 16; //FIXME: or 8?
-	memset(authrand, 0, sizeof(authrand));
-	if ((rv = SKF_GenRandom(hDev, authrand, len)) != SAR_OK) {
-		ESKFerr(ESKF_F_DEV_AUTH, ESKF_R_SKF_GEN_RANDOM_FAILED);
-		goto end;
-	}
-
-	if (!(ctx = EVP_CIPHER_CTX_new())) {
-		ESKFerr(ESKF_F_DEV_AUTH, ERR_R_EVP_LIB);
-		goto end;
-	}
-
-	if (!EVP_EncryptInit(ctx, cipher, authkey, NULL)) {
-		ESKFerr(ESKF_F_DEV_AUTH, ERR_R_EVP_LIB);
-		goto end;
-	}
-
-	if (!EVP_Cipher(ctx, authdata, authrand, sizeof(authrand))) {
-		ESKFerr(ESKF_F_DEV_AUTH, ERR_R_EVP_LIB);
-		goto end;
-	}
-
-	if ((rv = SKF_DevAuth(hDev, authdata, sizeof(authdata))) != SAR_OK) {
-		ESKFerr(ESKF_F_DEV_AUTH, ESKF_R_SKF_DEV_AUTH_FAILED);
-		goto end;
-	}
-
-	isDevAuthenticated = 1;
-	ret = 1;
-end:
-	EVP_CIPHER_CTX_free(ctx);
-	return ret;
-}
-
-static int open_app(const char *appname)
-{
-	ULONG rv;
-
-	if (!hDev) {
-		ESKFerr(ESKF_F_OPEN_APP, ESKF_R_DEV_NOT_CONNECTED);
-		return 0;
-	}
-
-	if (!isDevAuthenticated) {
-		ESKFerr(ESKF_F_OPEN_APP, ESKF_R_DEV_NOT_AUTHENTICATED);
-		return 0;
-	}
-
-	if (hApp) {
-		ESKFerr(ESKF_F_OPEN_APP, ESKF_R_APP_ALREADY_OPENED);
-		return 0;
-	}
-
-	if ((rv = SKF_OpenApplication(hDev, (LPSTR)appname, &hApp)) != SAR_OK) {
-		ESKFerr(ESKF_F_OPEN_APP, ESKF_R_SKF_OPEN_APPLICATION_FAILED);
-		return 0;
-	}
-
-	return 1;
-}
-
-static int verify_pin(const char *userpin)
-{
-	ULONG rv;
-	ULONG retryCount;
-
-	if (!hDev) {
-		ESKFerr(ESKF_F_VERIFY_PIN, ESKF_R_DEV_NOT_CONNECTED);
-		return 0;
-	}
-
-	if (!isDevAuthenticated) {
-		ESKFerr(ESKF_F_VERIFY_PIN, ESKF_R_DEV_NOT_AUTHENCATED);
-		return 0;
-	}
-
-	if (!hApp) {
-		ESKFerr(ESKF_F_VERIFY_PIN, ESKF_R_APP_NOT_OPENED);
-		return 0;
-	}
-
-	if ((rv = SKF_VerifyPIN(hApp, USER_TYPE, (LPSTR)userpin, &retryCount)) != SAR_OK) {
-		ESKFerr(ESKF_F_VERIFY_PIN, ESKF_R_SKF_VERIFY_PIN_FAILED);
-		return 0;
-	}
-
-	isPinVerified = 1;
-	return 1;
-}
-
-static int open_container(const char *containername)
-{
-	ULONG rv;
-
-	if (!hDev) {
-		ESKFerr(ESKF_F_OPEN_CONTAINER, ESKF_R_DEV_NOT_CONNECTED);
-		return 0;
-	}
-
-	if (!isDevAuthenticated) {
-		ESKFerr(ESKF_F_OPEN_CONTAINER, ESKF_R_DEV_NOT_AUTHENTICATED);
-		return 0;
-	}
-
-	if (!hApp) {
-		ESKFerr(ESKF_F_OPEN_CONTAINER, ESKF_R_APP_NOT_OPENED);
-		return 0;
-	}
-
-	if (!isPinVerified) {
-		ESKFerr(ESKF_F_OPEN_CONTAINER, ESKF_R_PIN_NOT_VERIFIED);
-		return 0;
-	}
-
-	if (hContainer) {
-		ESKFerr(ESKF_F_OPEN_CONTAINER, ESKF_R_CONTAINER_ALREADY_OPENED);
-		return 0;
-	}
-
-	if ((rv = SKF_OpenContainer(hApp, (LPSTR)containername, &hContainer)) != SAR_OK) {
-		ESKFerr(ESKF_F_OPEN_CONTAINER, ESKF_R_SKF_OPEN_CONTAINER_FAILED);
-		return 0;
-	}
-
-	/*
-	*/
 
 	return 1;
 }
@@ -298,55 +131,42 @@ static int skf_engine_ctrl(ENGINE *e, int cmd, long i, void *p, void (*f)())
 	return 0;
 }
 
-static EVP_PKEY *skf_load_pubkey(ENGINE *e, const char *key_id,
+static EVP_PKEY *sdf_load_pubkey(ENGINE *e, const char *key_id,
 	UI_METHOD *ui_method, void *callback_data)
 {
-	ULONG rv, len;
+	int r;
 	EVP_PKEY *ret = NULL;
-	EC_KEY *ec_key = NULL;
-	RSA *rsa = NULL;
-	ECCPUBLICKEYBLOB eccblob;
-	RSAPUBLICKEYBLOB rsablob;
-	ULONG containerType;
+	ECCrefPublicKey pubkey;
 
-	if (!hContainer) {
-		ESKFerr(ESKF_F_SKF_LOAD_PUBKEY, ESKF_R_CONTAINER_NOT_OPENED);
+
+	BIGNUM *x = NULL;
+	BIGNUM *y = NULL;
+	BN_CTX *bn_ctx = NULL;
+
+
+
+	memset(&pubkey, 0, sizeof(pubkey));
+	if ((r = SDF_ExportSignPublicKey_ECC(session_handle, key_index,
+		&pubkey)) != SDR_OK) {
 		return 0;
 	}
 
-	if ((rv = SKF_GetContainerType(hContainer, &containerType)) != SAR_OK) {
-		ESKFerr(ESKF_F_SKF_LOAD_PUBKEY, ESKF_R_SKF_GET_CONTAINER_TYPE_FAILED);
-		return 0;
+	/* convert pubkey to EVP_PKEY */
+
+	ret = EC_KEY_new_by_curve_name(NID_sm2p256v1);
+	x = BN_bin2bn(ref->x, 256/8, NULL);
+	y = BN_bin2bn(ref->y, 256/8, NULL);
+	bn_ctx = BN_new();
+	if (!ret || !x || !y || !bn_ctx) {
+		goto end;
 	}
 
-	if (containerType == CONTAINER_TYPE_ECC) {
-		len = sizeof(eccblob);
-		if ((rv = SKF_ExportPublicKey(hContainer, TRUE, (BYTE *)&eccblob, &len)) != SAR_OK) {
-			ESKFerr(ESKF_F_SKF_LOAD_PUBKEY, ESKF_R_SKF_EXPORT_PUBLIC_KEY_FAILED);
-			return 0;
-		}
-		if (!(ec_key = EC_KEY_new_from_ECCPUBLICKEYBLOB(&eccblob))) {
-			return 0;
-		}
-		EVP_PKEY_set1_EC_KEY(ret, ec_key);
-		ec_key = NULL;
-
-	} else if (containerType == CONTAINER_TYPE_RSA) {
-		len = sizeof(rsablob);
-		if ((rv = SKF_ExportPublicKey(hContainer, TRUE, (BYTE *)&rsablob, &len)) != SAR_OK) {
-			ESKFerr(ESKF_F_SKF_LOAD_PUBKEY, ESKF_R_SKF_EXPORT_PUBLIC_KEY_FAILED);
-			return 0;
-		}
-		if (!(rsa = RSA_new_from_RSAPUBLICKEYBLOB(&rsablob))) {
-			return 0;
-		}
-		EVP_PKEY_set1_RSA(ret, rsa);
-		rsa = NULL;
-
-	} else {
-		ESKFerr(ESKF_F_SKF_LOAD_PUBKEY, ESKF_R_INVALID_CONTAINER_TYPE);
-		return 0;
+	if (!EC_PKEY_set_public_key_affine_coordinates(ec_key, x, y, bn_ctx)) {
+		goto end;
 	}
+
+	/* set evp_pkey */
+
 
 	return ret;
 }
@@ -367,27 +187,19 @@ static int skf_finish(ENGINE *e)
 		}
 	}
 
+	if (session) {
+		SDF_CloseSession(session);
+	}
+	if (device) {
+		SDF_CloseDevice(device);
+	}
+
 	return 1;
 }
 
-static int skf_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
-	const unsigned char *iv, int enc)
-{
-	ULONG rv;
-	ULONG ulAlgID;
-
-	if (!SKF_nid_to_encparam(EVP_CIPHER_CTX_nid(ctx), &ulAlgID, NULL)) {
-		return 0;
-	}
-	if ((rv = SKF_SetSymmKey(hDev, (BYTE *)key, ulAlgID, &(ctx->cipher_data))) != SAR_OK) {
-		ESKFerr(ESKF_F_SKF_INIT_KEY, ESKF_R_SKF_SET_SYMMKEY_FAILED);
-		return 0;
-	}
-	return 1;
-}
-
+/* set the default sm2 */
 static ECDSA_METHOD skf_sm2sign = {
-	"SKF ECDSA method (SM2 signature)",
+	"SDF SM2 Signing Method",
 	NULL,
 	NULL,
 	NULL,
@@ -399,21 +211,28 @@ static ECDSA_SIG *sdf_sm2_do_sign(const unsigned char *dgst, int dgstlen,
 	const BIGNUM *a, const BIGNUM *b, EC_KEY *ec_key)
 {
 	ECDSA_SIG *ret = NULL;
+
+	ECCSignature sigbuf;
+	ECCSignature *sig = &sigbuf;
 	BYTE *pbDigest = (BYTE *)dgst;
 	ULONG ulDigestLen = (ULONG)dgstlen;
-	ECCSIGNATUREBLOB sigBlob;
 	ULONG rv;
 	int ok = 0;
 
-	if (a || b) {
+
+	if ((r = SDF_InternalSign_ECC(session, key_index, dgst, dgstlen,
+		&sigbuf)) != SDR_OK) {
+		return -1;
 	}
-	if ((rv = SKF_ECCSignData(hContainer, pbDigest, ulDigestLen, &sigBlob)) != SAR_OK) {
-		goto end;
-	}
+
+
 	if (!(ret = ECDSA_SIG_new())) {
 		goto end;
 	}
-	if (!ECDSA_SIG_set_ECCSIGNATUREBLOB(ret, &sigBlob)) {
+	if (!(ret->r = BN_bin2bn(sig->r, 256/8, ret->r))) {
+		goto end;
+	}
+	if (!(ret->s = BN_bin2bn(sig->s, 256/8, ret->s))) {
 		goto end;
 	}
 
@@ -467,17 +286,13 @@ static int bind(ENGINE *e, const char *id)
 	}
 
 	if (!ENGINE_set_id(e, engine_skf_id) ||
-		!ENGINE_set_name(e, engine_skf_name) ||
-		!ENGINE_set_init_function(e, skf_init) ||
-		!ENGINE_set_finish_function(e, skf_finish) ||
-		!ENGINE_set_ctrl_function(e, skf_engine_ctrl) ||
-		!ENGINE_set_destroy_function(e, NULL) || //FIXME
-		!ENGINE_set_digests(e, skf_digests) ||
-		!ENGINE_set_ciphers(e, skf_ciphers) ||
-		!ENGINE_set_load_pubkey_function(e, skf_load_pubkey) ||
-		!ENGINE_set_ECDSA(e, NULL) || //FIXME
-		!ENGINE_set_RSA(e, &skf_rsa) ||
-		!ENGINE_set_RAND(e, &skf_rand)) {
+		!ENGINE_set_name(e, engine_sdf_name) ||
+		!ENGINE_set_init_function(e, sdf_init) ||
+		!ENGINE_set_finish_function(e, sdf_finish) ||
+		!ENGINE_set_ctrl_function(e, sdf_engine_ctrl) ||
+		!ENGINE_set_destroy_function(e, sdf_sm2_do_sign) ||
+		!ENGINE_set_load_pubkey_function(e, sdf_load_pubkey) ||
+		!ENGINE_set_ECDSA(e, NULL)) {
 
 		return 0;
 	}

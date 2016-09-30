@@ -1,5 +1,6 @@
+/* crypto/sm9/sm9_lib.c */
 /* ====================================================================
- * Copyright (c) 2014 - 2016 The GmSSL Project.  All rights reserved.
+ * Copyright (c) 2016 The GmSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -47,33 +48,73 @@
  * ====================================================================
  */
 
-#ifndef HEADER_CBCMAC_H
-#define HEADER_CBCMAC_H
+#include <openssl/err.h>
+#include <openssl/sm9.h>
 
-#include <openssl/evp.h>
+int SM9_setup(int curve, SM9PublicParameters **mpk, SM9MasterSecret **msk)
+{
+	int ret = 0;
+	SM9PublicParameters *pk = NULL;
+	SM9MasterSecret *sk = NULL;
+	EC_GROUP *group = NULL;
+	BIGNUM *order = NULL;
+	EC_POINT *Ppub = NULL;
+	BN_CTX *bn_ctx = NULL;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+	pk = SM9PublicParameters_new();
+	sk = SM9MasterSecret_new();
+	group = EC_GROUP_new_by_curve_name(curve);
+	order = BN_new();
+	bn_ctx = BN_CTX_new();
+	if (!pk || !sk || !order || !bn_ctx) {
+		SM9err(SM9_F_SM9_SETUP, ERR_R_MALLOC_FAILURE);
+		goto end;
+	}
 
+	if (!(group = EC_GROUP_new_by_curve_name(curve))) {
+		SM9err(SM9_F_SM9_SETUP, SM9_R_UNKNOWN_CURVE);
+		goto end;
+	}
+	if (!SM9_check_group(group)) {
+		SM9err(SM9_F_SM9_SETUP, SM9_R_INVALID_CURVE);
+		goto end;
+	}
+	OPENSSL_assert(pk->curve == NULL);
+	pk->curve = OBJ_nid2obj(curve);
 
-typedef struct CBCMAC_CTX_st CBCMAC_CTX;
+	if (!EC_GROUP_get_order(group, order, bn_ctx)) {
+		SM9err(SM9_F_SM9_SETUP, ERR_R_EC_LIB);
+		goto end;
+	}
+	OPENSSL_assert(sk->ks != NULL);
+	do {
+		if (!BN_rand_range(sk->ks, order)) {
+			SM9err(SM9_F_SM9_SETUP, ERR_R_BN_LIB);
+			goto end;
+		}
+	} while (BN_is_zero(sk->ks));
 
+	if (!EC_GROUP_mul(group, point, NULL, sk->ks, NULL, bn_ctx)) {
+		SM9err(SM9_F_SM9_SETUP, ERR_R_EC_LIB);
+		goto end;
+	}
+	//FIXME: see EC_GROUP_get_ecparameters() in ec_asn1.c
 
-CBCMAC_CTX *CBCMAC_CTX_new(void);
-void CBCMAC_CTX_cleanup(CBCMAC_CTX *ctx);
-void CBCMAC_CTX_free(CBCMAC_CTX *ctx);
+	*mpk = pk;
+	*msk = sk;
+	ret = 1;
 
-EVP_CIPHER_CTX *CBCMAC_CTX_get0_cipher_ctx(CBCMAC_CTX *ctx);
-int CBCMAC_CTX_copy(CBCMAC_CTX *to, const CBCMAC_CTX *from);
-
-int CBCMAC_Init(CBCMAC_CTX *ctx, const void *key, size_t keylen,
-	const EVP_CIPHER *cipher, ENGINE *impl);
-int CBCMAC_Update(CBCMAC_CTX *ctx, const void *data, size_t datalen);
-int CBCMAC_Final(CBCMAC_CTX *ctx, unsigned char *out, size_t *outlen);
-int CBCMAC_resume(CBCMAC_CTX *ctx);
-
-#ifdef  __cplusplus
+end:
+	if (!ret) {
+		SM9PublicParameters_free(pk);
+		SM9MasterSecret_free(sk);
+		*mpk = NULL;
+		*msk = NULL;
+	}
+	EC_GROUP_free(group);
+	EC_POINT_free(point);
+	BN_free(order);
+	BN_CTX_free(bn_ctx);
+	return ret;
 }
-#endif
-#endif
+

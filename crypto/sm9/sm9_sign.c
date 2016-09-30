@@ -52,7 +52,6 @@
 #include <openssl/sm9.h>
 
 
-#ifndef NO_GMSSL
 SM9Signature *SM9_do_sign(SM9PublicParameters *mpk,
 	const unsigned char *dgst, size_t dgstlen,
 	SM9PrivateKey *sk)
@@ -73,15 +72,52 @@ int SM9_sign(SM9PublicParameters *mpk, const unsigned char *dgst,
 	size_t dgstlen, unsigned char *sig, size_t *siglen,
 	SM9PrivateKey *sk)
 {
-	SM9err(SM9_F_SM9_SIGN, SM9_R_NOT_IMPLEMENTED);
-	return 0;
+	SM9Signature *s;
+
+	RAND_seed(dgst, dgstlen);
+
+	if (!(s = SM9_do_sign(mpk, dgst, dgstlen, sk))) {
+		*siglen = 0;
+		return 0;
+	}
+
+	*siglen = i2d_SM9Signature(s, &sig);
+	SM9Signature_free(s);
+
+	return 1;
 }
 
 int SM9_verify(SM9PublicParameters *mpk, const unsigned char *dgst,
 	size_t dgstlen, const unsigned char *sig, size_t siglen,
 	const char *id, size_t idlen)
 {
-	SM9err(SM9_F_SM9_VERIFY, SM9_R_NOT_IMPLEMENTED);
-	return 0;
+	SM9Signature *s;
+	const unsigned char *p = sig;
+	unsigned char *der = NULL;
+	int derlen = -1;
+	int ret = -1;
+
+	if (!(s = SM9Signature_new())) {
+		SM9err(SM9_F_SM9_VERIFY, ERR_R_MALLOC_FAILURE);
+		return -1;
+	}
+	if (!d2i_SM9Signature(&s, &p, siglen)) {
+		goto end;
+	}
+	derlen = i2d_SM9Signature(s, &der);
+	if (derlen != siglen || memcmp(sig, der, derlen)) {
+		goto end;
+	}
+
+	ret = SM9_do_verify(mpk, dgst, dgstlen, s, id, idlen);
+
+end:
+	if (derlen > 0) {
+		OPENSSL_cleanse(der, derlen);
+		OPENSSL_free(der);
+	}
+
+	SM9Signature_free(s);
+	return ret;
 }
-#endif
+

@@ -52,6 +52,3 @@
 #include <openssl/sm9.h>
 
 
-#ifndef NO_GMSSL
-
-#endif

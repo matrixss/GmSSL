@@ -63,6 +63,14 @@ extern "C" {
 #define CPK_MAX_ID_LENGTH	64
 
 
+X509_ALGOR *CPK_MAP_new_default(void);
+int CPK_MAP_is_valid(const X509_ALGOR *algor);
+int CPK_MAP_num_factors(const X509_ALGOR *algor);
+int CPK_MAP_num_indexes(const X509_ALGOR *algor);
+int CPK_MAP_str2index(const X509_ALGOR *algor, const char *str, int *index);
+int CPK_MAP_print(BIO *out, X509_ALGOR *map, int indent, unsigned long flags);
+
+
 typedef struct cpk_master_secret_st {
 	long version;
 	X509_NAME *id;
@@ -81,19 +89,10 @@ typedef struct cpk_public_params_st {
 } CPK_PUBLIC_PARAMS;
 DECLARE_ASN1_FUNCTIONS(CPK_PUBLIC_PARAMS)
 
-X509_ALGOR *CPK_MAP_new_default(void);
-int CPK_MAP_is_valid(const X509_ALGOR *algor);
-int CPK_MAP_num_factors(const X509_ALGOR *algor);
-int CPK_MAP_num_indexes(const X509_ALGOR *algor);
-int CPK_MAP_str2index(const X509_ALGOR *algor, const char *str, int *index);
-int CPK_MAP_print(BIO *out, X509_ALGOR *map, int indent, unsigned long flags);
-
 CPK_MASTER_SECRET *CPK_MASTER_SECRET_create(const char *domain_id, EVP_PKEY *pkey, X509_ALGOR *map_algor);
 CPK_PUBLIC_PARAMS *CPK_MASTER_SECRET_extract_public_params(CPK_MASTER_SECRET *master);
 EVP_PKEY *CPK_MASTER_SECRET_extract_private_key(CPK_MASTER_SECRET *master, const char *id);
 EVP_PKEY *CPK_PUBLIC_PARAMS_extract_public_key(CPK_PUBLIC_PARAMS *params, const char *id);
-
-
 int CPK_PUBLIC_PARAMS_compute_share_key(CPK_PUBLIC_PARAMS *params,
 	void *out, size_t outlen, const char *id, EVP_PKEY *priv_key,
 	void *(*kdf)(const void *in, size_t inlen, void *out, size_t *outlen));
@@ -106,6 +105,7 @@ int CPK_MASTER_SECRET_print(BIO *out, CPK_MASTER_SECRET *master, int indent, uns
 int CPK_PUBLIC_PARAMS_print(BIO *out, CPK_PUBLIC_PARAMS *params, int indent, unsigned long flags);
 int CPK_MASTER_SECRET_validate_public_params(CPK_MASTER_SECRET *master, CPK_PUBLIC_PARAMS *params);
 int CPK_PUBLIC_PARAMS_validate_private_key(CPK_PUBLIC_PARAMS *params, const char *id, const EVP_PKEY *pkey);
+
 CPK_MASTER_SECRET *d2i_CPK_MASTER_SECRET_bio(BIO *bp, CPK_MASTER_SECRET **master);
 int i2d_CPK_MASTER_SECRET_bio(BIO *bp, CPK_MASTER_SECRET *master);
 CPK_PUBLIC_PARAMS *d2i_CPK_PUBLIC_PARAMS_bio(BIO *bp, CPK_PUBLIC_PARAMS **params);

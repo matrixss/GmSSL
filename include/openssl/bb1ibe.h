@@ -1,5 +1,5 @@
 /* ====================================================================
- * Copyright (c) 2014 - 2016 The GmSSL Project.  All rights reserved.
+ * Copyright (c) 2016 The GmSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -46,34 +46,85 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  * ====================================================================
  */
+/* see [RFC 5091] Identity-Based Cryptography Standard (IBCS) #1:
+ * Supersingular Curve Implementations of the BF and BB1 Cryptosystems
+ */
 
-#ifndef HEADER_CBCMAC_H
-#define HEADER_CBCMAC_H
+#ifndef HEADER_BB1IBE_H
+#define HEADER_BB1IBE_H
 
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <openssl/bn.h>
+#include <openssl/err.h>
 #include <openssl/evp.h>
+#include <openssl/pairing.h>
+
+#define BB1IBE_VERSION	2
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+typedef struct BB1PublicParameters_st {
+	long version;
+	ASN1_OBJECT *curve;
+	BIGNUM *p;
+	BIGNUM *q;
+	FpPoint *pointP;
+	FpPoint *pointP1;
+	FpPoint *pointP2;
+	FpPoint *pointP3;
+	FpPoint *v;
+	ASN1_OBJECT *hashfcn;
+} BB1PublicParameters;
+DECLARE_ASN1_FUNCTIONS(BB1PublicParameters)
 
-typedef struct CBCMAC_CTX_st CBCMAC_CTX;
+typedef struct BB1MasterSecret_st {
+	long version;
+	BIGNUM *alpha;
+	BIGNUM *beta;
+	BIGNUM *gamma;
+} BB1MasterSecret;
+DECLARE_ASN1_FUNCTIONS(BB1MasterSecret)
+
+typedef struct BB1PrivateKeyBlock_st {
+	long version;
+	FpPoint *pointD0;
+	FpPoint *pointD1;
+} BB1PrivateKeyBlock;
+DECLARE_ASN1_FUNCTIONS(BB1PrivateKeyBlock)
+
+typedef struct BB1CiphertextBlock_st {
+	long version;
+	FpPoint *pointChi0;
+	FpPoint *pointChi1;
+	BIGNUM *nu;
+	ASN1_OCTET_STRING *y;
+} BB1CiphertextBlock;
+DECLARE_ASN1_FUNCTIONS(BB1CiphertextBlock)
+
+int BB1IBE_setup(PAIRING *pairing, BB1PublicParameters **mpk, BB1MasterSecret **msk);
+BB1PrivateKeyBlock *BB1IBE_extract_private_key(BB1PublicParameters *mpk,
+	BB1MasterSecret *msk, const char *id, size_t idlen);
+BB1CiphertextBlock *BB1IBE_do_encrypt(BB1PublicParameters *mpk,
+	const unsigned char *in, size_t inlen,
+	const char *id, size_t idlen);
+int BB1IBE_do_decrypt(BB1PublicParameters *mpk,
+	const BB1CiphertextBlock *in, unsigned char *out, size_t *outlen,
+	BB1PrivateKeyBlock *sk);
+int BB1IBE_encrypt(BB1PublicParameters *mpk,
+	const unsigned char *in, size_t inlen,
+	unsigned char *out, size_t *outlen,
+	const char *id, size_t idlen);
+int BB1IBE_decrypt(BB1PublicParameters *mpk,
+	const unsigned char *in, size_t inlen,
+	unsigned char *out, size_t *outlen,
+	BB1PrivateKeyBlock *sk);
 
 
-CBCMAC_CTX *CBCMAC_CTX_new(void);
-void CBCMAC_CTX_cleanup(CBCMAC_CTX *ctx);
-void CBCMAC_CTX_free(CBCMAC_CTX *ctx);
-
-EVP_CIPHER_CTX *CBCMAC_CTX_get0_cipher_ctx(CBCMAC_CTX *ctx);
-int CBCMAC_CTX_copy(CBCMAC_CTX *to, const CBCMAC_CTX *from);
-
-int CBCMAC_Init(CBCMAC_CTX *ctx, const void *key, size_t keylen,
-	const EVP_CIPHER *cipher, ENGINE *impl);
-int CBCMAC_Update(CBCMAC_CTX *ctx, const void *data, size_t datalen);
-int CBCMAC_Final(CBCMAC_CTX *ctx, unsigned char *out, size_t *outlen);
-int CBCMAC_resume(CBCMAC_CTX *ctx);
-
-#ifdef  __cplusplus
+#ifdef __cplusplus
 }
 #endif
 #endif

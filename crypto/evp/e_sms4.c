@@ -285,6 +285,138 @@ static int sms4_wrap_do_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 	NULL,NULL,NULL,NULL,
 };
 
+typedef struct {
+	sms4_key_t ks;
+	int key_set;
+	int iv_set;
+	GCM128_CONTEXT gcm;
+	unsigned char *iv;
+	int ivlen;
+	int taglen;
+	int iv_gen;
+	int tls_aad_len;
+	ctr128_f ctr;
+} EVP_SMS4_GCM_CTX;
+
+
+static int sms4_gcm_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
+	const unsigned char *iv, int enc)
+{
+#if 0
+	EVP_SMS4_GCM_CTX *gctx = EVP_C_DATA(EVP_SMS4_GCM_CTX, ctx);
+	if (!iv && !key) {
+		return 1;
+	}
+
+	if (key) {
+		do {
+                	(void)0; /* terminate potentially open 'else' */
+			sms4_set_encrypt_key(key, EVP_CIPHER_CTX_key_length(ctx) * 8, gctx->ks);
+			CRYPTO_gcm128_init(&gctx->gcm, &gctx->ks, (block128_f) sms4_encrypt);
+			gctx->ctr = NULL;
+		} while (0);
+
+		if (iv == NULL && gctx->iv_set) {
+			iv = gctx->iv;
+		}
+		if (iv) {
+			CRYPTO_gcm128_setiv(&gctx->gcm, iv, gctx->ivlen);
+			gctx->iv_set = 1;
+		}
+		gctx->key_set = 1;
+
+	} else {
+		if (gctx->key_set) {
+			CRYPTO_gcm128_setiv(&gctx->gcm, iv, gctx->ivlen);
+		} else {
+			memcpy(gctx->iv, iv, gctx->ivlen);
+		}
+		gctx->iv_set = 1;
+		gctx->iv_gen = 0;
+	}
+#endif
+	return 1;
+}
+
+static int sms4_gcm_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
+	const unsigned char *in, size_t len)
+{
+#if 0
+	EVP_SMS4_GCM_CTX *gctx = EVP_C_DATA(EVP_SMS4_GCM_CTX, ctx);
+
+	if (!gctx->key_set) {
+		return -1;
+	}
+
+	/*
+	if (gctx->tls_aad_len >= 0) {
+		return aes_gcm_tls_cipher(ctx, out, in, len);
+	}
+	*/
+
+	if (!gctx->iv_set) {
+		return -1;
+	}
+
+	if (in) {
+		if (out == NULL) {
+			if (CRYPTO_gcm128_aad(&gctx->gcm, in, len)) {
+				return -1;
+			}
+		} else if (EVP_CIPHER_CTX_encrypting(ctx)) {
+			if (gctx->ctr) {
+				size_t bulk = 0;
+				if (CRYPTO_gcm128_encrypt_ctr32(&gctx->gcm,
+					in + bulk, out + bulk, len - bulk,
+					gctx->ctr)) {
+					return -1;
+				}
+			} else {
+				size_t bulk = 0;
+				if (CRYPTO_gcm128_encrypt(&gctx->gcm,
+					in + bulk, out + bulk, len - bulk)) {
+					return -1;
+				}
+			}
+		} else {
+
+			if (gctx->ctr) {
+				size_t bulk = 0;
+                if (CRYPTO_gcm128_decrypt_ctr32(&gctx->gcm,
+                                                in + bulk,
+                                                out + bulk,
+                                                len - bulk, gctx->ctr))
+                    return -1;
+            } else {
+                size_t bulk = 0;
+                if (CRYPTO_gcm128_decrypt(&gctx->gcm,
+                                          in + bulk, out + bulk, len - bulk))
+                    return -1;
+            }
+        }
+        return len;
+    } else {
+        if (!EVP_CIPHER_CTX_encrypting(ctx)) {
+            if (gctx->taglen < 0)
+                return -1;
+            if (CRYPTO_gcm128_finish(&gctx->gcm,
+                                     EVP_CIPHER_CTX_buf_noconst(ctx),
+                                     gctx->taglen) != 0)
+                return -1;
+            gctx->iv_set = 0;
+            return 0;
+        }
+        CRYPTO_gcm128_tag(&gctx->gcm, EVP_CIPHER_CTX_buf_noconst(ctx), 16);
+        gctx->taglen = 16;
+        /* Don't reuse the IV */
+        gctx->iv_set = 0;
+        return 0;
+    }
+#endif
+	return 0;
+}
+
+
 const EVP_CIPHER *EVP_sms4_wrap(void)
 {
 	return &sms4_wrap;

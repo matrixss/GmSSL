@@ -104,15 +104,12 @@ void SM2_ENC_PARAMS_free(SM2_ENC_PARAMS *param)
 	OPENSSL_free(param);
 }
 
-
-
 int SM2_CIPHERTEXT_VALUE_size(const EC_GROUP *group,
 	const SM2_ENC_PARAMS *params, size_t mlen)
 {
 	int ret = 0;
 	EC_KEY *ec_key = NULL;
 	size_t len = 0;
-
 
 	if (!(ec_key = EC_KEY_new())) {
 		ECerr(EC_F_SM2_CIPHERTEXT_VALUE_SIZE, ERR_R_EC_LIB);
@@ -130,8 +127,7 @@ int SM2_CIPHERTEXT_VALUE_size(const EC_GROUP *group,
 	len += EC_POINT_point2oct(group, EC_KEY_get0_public_key(ec_key),
 		params->point_form, NULL, 0, NULL);
 	len += mlen;
-	len += params->mactag_size < 0 ? EVP_MD_size(params->mac_md) :
-		params->mactag_size;
+	len += EVP_MD_size(params->mac_md);
 
  	ret = (int)len;
 
@@ -486,7 +482,7 @@ SM2_CIPHERTEXT_VALUE *SM2_do_encrypt(const SM2_ENC_PARAMS *params,
 		cv->ciphertext[i] ^= in[i];
 	}
 
-	mactag_size = EVP_MD_size(param->mac_md);
+	mactag_size = EVP_MD_size(params->mac_md);
 	if (mactag_size) {
 
 		/* A7: C3 = Hash(x2 || M || y2) */
@@ -726,8 +722,7 @@ end:
 }
 
 int SM2_encrypt_with_recommended(const unsigned char *in, size_t inlen,
-	unsigned char *out, size_t *outlen,
-	EC_KEY *ec_key)
+	unsigned char *out, size_t *outlen, EC_KEY *ec_key)
 {
 	SM2_ENC_PARAMS params;
 	SM2_ENC_PARAMS_init_with_recommended(&params);
@@ -742,5 +737,4 @@ int SM2_decrypt_with_recommended(const unsigned char *in, size_t inlen,
 	SM2_ENC_PARAMS_init_with_recommended(&params);
 	return SM2_decrypt(&params, in, inlen, out, outlen, ec_key);
 }
-
 

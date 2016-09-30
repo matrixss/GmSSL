@@ -36,6 +36,10 @@
 extern "C" {
 # endif
 
+# ifndef NO_GMSSL
+#  define OPENSSL_ECC_MAX_FIELD_BITS 4096
+# endif
+
 # ifndef OPENSSL_ECC_MAX_FIELD_BITS
 #  define OPENSSL_ECC_MAX_FIELD_BITS 661
 # endif

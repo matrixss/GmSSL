@@ -1,5 +1,5 @@
 /* ====================================================================
- * Copyright (c) 2014 - 2016 The GmSSL Project.  All rights reserved.
+ * Copyright (c) 2016 The GmSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -46,34 +46,77 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  * ====================================================================
  */
+/* see [RFC 5091] Identity-Based Cryptography Standard (IBCS) #1:
+ * Supersingular Curve Implementations of the BF and BB1 Cryptosystems
+ */
 
-#ifndef HEADER_CBCMAC_H
-#define HEADER_CBCMAC_H
+#ifndef HEADER_BFIBE_H
+#define HEADER_BFIBE_H
 
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <openssl/bn.h>
+#include <openssl/err.h>
 #include <openssl/evp.h>
+#include <openssl/pairing.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+typedef struct BFPublicParameters_st {
+	long version;
+	ASN1_OBJECT *curve;
+	BIGNUM *p;
+	BIGNUM *q;
+	ASN1_OCTET_STRING *pointP;
+	ASN1_OCTET_STRING *pointPpub;
+	ASN1_OBJECT *hashfcn;
+} BFPublicParameters;
+DECLARE_ASN1_FUNCTIONS(BFPublicParameters)
 
-typedef struct CBCMAC_CTX_st CBCMAC_CTX;
+typedef struct BFMasterSecret_st {
+	long version;
+	BIGNUM *masterSecret;
+} BFMasterSecret;
+BFPublicParameters(BFMasterSecret)
+
+typedef struct BFPrivateKeyBlock_st {
+	long version;
+	FpPoint *privateKey;
+} BFPrivateKeyBlock;
+BFPublicParameters(BFPrivateKeyBlock)
+
+typedef struct BFCiphertextBlock_st {
+	long version;
+	FpPoint *u;
+	ASN1_OCTET_STRING *v;
+	ASN1_OCTET_STRING *w;
+} BFCiphertextBlock;
+BFPublicParameters(BFCiphertextBlock)
 
 
-CBCMAC_CTX *CBCMAC_CTX_new(void);
-void CBCMAC_CTX_cleanup(CBCMAC_CTX *ctx);
-void CBCMAC_CTX_free(CBCMAC_CTX *ctx);
+int BFIBE_setup(PAIRING *pairing, BFPublicParameters **mpk, BFMasterSecret **msk);
+BFPrivateKeyBlock *BFIBE_extract_private_key(BFPublicParameters *mpk,
+	BFMasterSecret *msk, const char *id, size_t idlen);
+BFCiphertextBlock *BFIBE_do_encrypt(BFPublicParameters *mpk,
+	const unsigned char *in, size_t inlen,
+	const char *id, size_t idlen);
+int BFIBE_do_decrypt(BFPublicParameters *mpk,
+	const BFCiphertextBlock *in, unsigned char *out, size_t *outlen,
+	BFPrivateKeyBlock *sk);
+int BFIBE_encrypt(BFPublicParameters *mpk,
+	const unsigned char *in, size_t inlen,
+	unsigned char *out, size_t *outlen,
+	const char *id, size_t idlen);
+int BFIBE_decrypt(BFPublicParameters *mpk,
+	const unsigned char *in, size_t inlen,
+	unsigned char *out, size_t *outlen,
+	BFPrivateKeyBlock *sk);
 
-EVP_CIPHER_CTX *CBCMAC_CTX_get0_cipher_ctx(CBCMAC_CTX *ctx);
-int CBCMAC_CTX_copy(CBCMAC_CTX *to, const CBCMAC_CTX *from);
 
-int CBCMAC_Init(CBCMAC_CTX *ctx, const void *key, size_t keylen,
-	const EVP_CIPHER *cipher, ENGINE *impl);
-int CBCMAC_Update(CBCMAC_CTX *ctx, const void *data, size_t datalen);
-int CBCMAC_Final(CBCMAC_CTX *ctx, unsigned char *out, size_t *outlen);
-int CBCMAC_resume(CBCMAC_CTX *ctx);
-
-#ifdef  __cplusplus
+#ifdef __cplusplus
 }
 #endif
 #endif

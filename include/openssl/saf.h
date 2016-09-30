@@ -54,6 +54,12 @@
 #define HEADER_SAF_H
 
 
+
+#define SGD_MAX_COUNT		64 /* max enumerate objects */
+#define SGD_MAX_NAME_SIZE	256
+
+
+
 int SAF_Initialize(void **phAppHandle, char *pucCfgFilePath);
 int SAF_Finalize(void *hAppHandle);
 

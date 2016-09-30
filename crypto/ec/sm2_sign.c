@@ -468,7 +468,7 @@ int SM2_sign_ex(int type, const unsigned char *dgst, int dgstlen,
 		return 0;
 	}
 
-    	*siglen = i2d_ECDSA_SIG(s, &sig);
+	*siglen = i2d_ECDSA_SIG(s, &sig);
 	ECDSA_SIG_free(s);
 
 	return 1;

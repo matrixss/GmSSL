@@ -38,6 +38,7 @@ L KDF		include/openssl/kdf.h		crypto/kdf/kdf_err.c
 L CPK		include/openssl/cpk.h		crypto/cpk/cpk_err.c
 L SM9		include/openssl/sm9.h		crypto/sm9/sm9_err.c
 L GMAPI		include/openssl/gmapi.h		crypto/gmapi/gmapi_err.c
+L PAIRING	include/openssl/pairing.h	crypto/pairing/pair_err.c
 L PAILLIER	include/openssl/paillier.h	crypto/paillier/pai_err.c
 
 # additional header files to be scanned for function names

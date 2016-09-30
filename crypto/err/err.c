@@ -62,6 +62,7 @@ static ERR_STRING_DATA ERR_str_libraries[] = {
     {ERR_PACK(ERR_LIB_CPK, 0, 0), "CPK routines"},
     {ERR_PACK(ERR_LIB_SM9, 0, 0), "SM9 routines"},
     {ERR_PACK(ERR_LIB_GMAPI, 0, 0), "GMAPI routines"},
+    {ERR_PACK(ERR_LIB_PAIRING, 0, 0), "PAIRING routines"},
     {ERR_PACK(ERR_LIB_PAILLIER, 0, 0), "PAILLIER routines"},
 #endif
     {0, NULL},

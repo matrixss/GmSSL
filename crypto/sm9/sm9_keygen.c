@@ -1,5 +1,6 @@
+/* crypto/sm9/sm9_genkey.c */
 /* ====================================================================
- * Copyright (c) 2014 - 2016 The GmSSL Project.  All rights reserved.
+ * Copyright (c) 2016 The GmSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -47,33 +48,62 @@
  * ====================================================================
  */
 
-#ifndef HEADER_CBCMAC_H
-#define HEADER_CBCMAC_H
+#include <openssl/err.h>
+#include <openssl/sm9.h>
 
-#include <openssl/evp.h>
+/*
+ Given user identity ID,
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+ 1. Compute t1 = H1(ID||hid, N) + ks. If t1 == 0 then return "Failed"
+ 2. Compute t2 = ks * t1^{-1} mod N
+ 3. Compute ds = [t2]P1
+ */
+
+SM9PrivateKey *SM9_extract_private_key(SM9PublicParameters *mpk,
+	SM9MasterSecret *msk, const char *id, size_t idlen)
+{
+	int e = 1;
+	SM9PrivateKey *ret = NULL;
+	BIGNUM *N = NULL;
+	BIGNUM *t1 = NULL;
 
 
-typedef struct CBCMAC_CTX_st CBCMAC_CTX;
+	if (!mpk || !msk || !id || idlen <= 0) {
+		SM9err(SM9_F_SM9_EXTRACT_PRIVATE_KEY,
+			ERR_R_PASSED_NULL_PARAMETERS);
+		return NULL;
+	}
 
+	if (!(ret = SM9PrivateKey_new())) {
+		SM9err(SM9_F_SM9_EXTRACT_PRIVATE_KEY,
+			ERR_R_MALLOC_FAILURE);
+		return NULL;
+	}
 
-CBCMAC_CTX *CBCMAC_CTX_new(void);
-void CBCMAC_CTX_cleanup(CBCMAC_CTX *ctx);
-void CBCMAC_CTX_free(CBCMAC_CTX *ctx);
+	if (!(t1 = SM9_hash1(id, idlen, N))) {
+		goto end;
+	}
+	if (!BN_add(t1, t1, N)) {
+		goto end;
+	}
+	if (BN_is_zero(t1)) {
+		goto end;
+	}
 
-EVP_CIPHER_CTX *CBCMAC_CTX_get0_cipher_ctx(CBCMAC_CTX *ctx);
-int CBCMAC_CTX_copy(CBCMAC_CTX *to, const CBCMAC_CTX *from);
+	if (!BN_mod_inverse(t1, t1, N, bn_ctx)) {
+		goto end;
+	}
 
-int CBCMAC_Init(CBCMAC_CTX *ctx, const void *key, size_t keylen,
-	const EVP_CIPHER *cipher, ENGINE *impl);
-int CBCMAC_Update(CBCMAC_CTX *ctx, const void *data, size_t datalen);
-int CBCMAC_Final(CBCMAC_CTX *ctx, unsigned char *out, size_t *outlen);
-int CBCMAC_resume(CBCMAC_CTX *ctx);
+	if (!BN_mod_mul(t2, t1, ks, N, bn_ctx)) {
+		goto end;
+	}
 
-#ifdef  __cplusplus
+	if (!EC_POINT_mul(group, mks->sk, NULL, t2, P1, bn_ctx)) {
+		goto end;
+	}
+
+	e = 0;
+end:
+	return ret;
 }
-#endif
-#endif
+

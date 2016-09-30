@@ -63,7 +63,7 @@ extern "C" {
 
 typedef struct SM9PublicParameters_st {
 	ASN1_OBJECT *curve;
-	ASN1_OCTET_STRING *P_pub;
+	ASN1_OCTET_STRING *Ppub;
 } SM9PublicParameters;
 DECLARE_ASN1_FUNCTIONS(SM9PublicParameters)
 
@@ -139,6 +139,21 @@ int SM9_verify(SM9PublicParameters *mpk, const unsigned char *dgst,
 /* key exchange */
 
 
+#define SM9_CID_NONSUPERSINGULAR	0x10
+#define SM9_CID_SUPERSINGULAR		0x11
+#define SM9_EID_TATE			0x01
+#define SM9_EID_WEIL			0x02
+#define SM9_EID_ATE			0x03
+#define SM9_EID_R_ATE			0x04
+
+
+
+BIGNUM *SM9_hash1(const EVP_MD *md, const unsigned char *z, size_t zlen,
+	const BIGNUM *range);
+BIGNUM *SM9_hash2(const EVP_MD *md, const unsigned char *z, size_t zlen,
+	const BIGNUM *range);
+
+
 
 /* BEGIN ERROR CODES */
 /*
@@ -157,11 +172,19 @@ int ERR_load_SM9_strings(void);
 # define SM9_F_SM9_DO_SIGN                                103
 # define SM9_F_SM9_DO_VERIFY                              104
 # define SM9_F_SM9_ENCRYPT                                105
+# define SM9_F_SM9_EXTRACT_PRIVATE_KEY                    108
+# define SM9_F_SM9_HASH1                                  109
+# define SM9_F_SM9_HASH2                                  110
+# define SM9_F_SM9_SETUP                                  111
 # define SM9_F_SM9_SIGN                                   106
 # define SM9_F_SM9_VERIFY                                 107
 
 /* Reason codes. */
+# define SM9_R_BUFFER_TOO_SMALL                           101
+# define SM9_R_ENCRYPT_FAILURE                            102
+# define SM9_R_INVALID_CURVE                              103
 # define SM9_R_NOT_IMPLEMENTED                            100
+# define SM9_R_UNKNOWN_CURVE                              104
 
 # ifdef  __cplusplus
 }

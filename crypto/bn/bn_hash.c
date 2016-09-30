@@ -1,3 +1,4 @@
+/* crypto/bn/bn_hash.h */
 /* ====================================================================
  * Copyright (c) 2014 - 2016 The GmSSL Project.  All rights reserved.
  *
@@ -47,33 +48,124 @@
  * ====================================================================
  */
 
-#ifndef HEADER_CBCMAC_H
-#define HEADER_CBCMAC_H
-
+#include <stdio.h>
+#include <string.h>
+#include <openssl/err.h>
 #include <openssl/evp.h>
+#include <openssl/bn.h>
+#include "bn_lcl.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+int BN_hash2bn(BIGNUM **bn, const char *s, size_t slen,
+	const EVP_MD *md, const BIGNUM *range)
+{
+	int ret = 0;
+	BIGNUM *r = NULL;
+	BIGNUM *a = NULL;
+	BN_CTX *bn_ctx = NULL;
+	unsigned char *buf = NULL;
+	size_t buflen, mdlen;
+	int nbytes, rounds, i;
 
+	if (!s || slen <= 0 || !md || !range) {
+		BNerr(BN_F_BN_HASH2BN, ERR_R_PASSED_NULL_PARAMETER);
+		return 0;
+	}
 
-typedef struct CBCMAC_CTX_st CBCMAC_CTX;
+	if (!(*bn)) {
+		if (!(r = BN_new())) {
+			BNerr(BN_F_BN_HASH2BN, ERR_R_MALLOC_FAILURE);
+			return 0;
+		}
+	} else {
+		r = *bn;
+		BN_zero(r);
+	}
 
+	mdlen = EVP_MD_size(md);
+	buflen = mdlen + slen;
+	if (!(buf = OPENSSL_malloc(buflen))) {
+		BNerr(BN_F_BN_HASH2BN, ERR_R_MALLOC_FAILURE);
+		goto end;
+	}
+	memset(buf, 0, mdlen);
+	memcpy(buf + mdlen, s, slen);
 
-CBCMAC_CTX *CBCMAC_CTX_new(void);
-void CBCMAC_CTX_cleanup(CBCMAC_CTX *ctx);
-void CBCMAC_CTX_free(CBCMAC_CTX *ctx);
+	a = BN_new();
+	bn_ctx = BN_CTX_new();
+	if (!a || !bn_ctx) {
+		BNerr(BN_F_BN_HASH2BN, ERR_R_MALLOC_FAILURE);
+		goto end;
+	}
 
-EVP_CIPHER_CTX *CBCMAC_CTX_get0_cipher_ctx(CBCMAC_CTX *ctx);
-int CBCMAC_CTX_copy(CBCMAC_CTX *to, const CBCMAC_CTX *from);
+	nbytes = BN_num_bytes(range);
+	rounds = (nbytes + mdlen - 1)/mdlen;
 
-int CBCMAC_Init(CBCMAC_CTX *ctx, const void *key, size_t keylen,
-	const EVP_CIPHER *cipher, ENGINE *impl);
-int CBCMAC_Update(CBCMAC_CTX *ctx, const void *data, size_t datalen);
-int CBCMAC_Final(CBCMAC_CTX *ctx, unsigned char *out, size_t *outlen);
-int CBCMAC_resume(CBCMAC_CTX *ctx);
+	if (!bn_expand(r, rounds * mdlen * 8)) {
+		BNerr(BN_F_BN_HASH2BN, ERR_R_BN_LIB);
+		goto end;
+	}
 
-#ifdef  __cplusplus
+	for (i = 0; i < rounds; i++) {
+		if (!EVP_Digest(buf, buflen, buf, (unsigned int *)&mdlen, md, NULL)) {
+			BNerr(BN_F_BN_HASH2BN, ERR_R_EVP_LIB);
+			goto end;
+		}
+		if (!BN_bin2bn(buf, mdlen, a)) {
+			BNerr(BN_F_BN_HASH2BN, ERR_R_BN_LIB);
+			goto end;
+		}
+		if (!BN_lshift(r, r, mdlen * 8)) {
+			BNerr(BN_F_BN_HASH2BN, ERR_R_BN_LIB);
+			goto end;
+		}
+		if (!BN_uadd(r, r, a)) {
+			goto end;
+		}
+	}
+
+	if (!BN_mod(r, r, range, bn_ctx)) {
+		BNerr(BN_F_BN_HASH2BN, ERR_R_BN_LIB);
+		goto end;
+	}
+
+	*bn = r;
+	ret = 1;
+end:
+	if (!ret && !(*bn)) {
+		BN_free(r);
+	}
+	BN_free(a);
+	BN_CTX_free(bn_ctx);
+	OPENSSL_free(buf);
+	return ret;
+}
+
+#if 1
+int main(void)
+{
+	char *s = "This ASCII string without null-terminator";
+	BIGNUM *bn = NULL;
+	BIGNUM *ret = NULL;
+	BIGNUM *range = NULL;
+
+	BN_hex2bn(&range, "ffffffffffffffffffffefffffffffffffffffff");
+	BN_hex2bn(&bn, "79317c1610c1fc018e9c53d89d59c108cd518608");
+
+	if (!BN_hash2bn(&ret, s, strlen(s), EVP_sha1(), range)) {
+		printf("BN_hash2bn() function failed\n");
+		return 0;
+	}
+	if (!ret) {
+		printf("shit\n");
+	}
+	printf("%s\n", BN_bn2hex(ret));
+	if (BN_cmp(ret, bn) != 0) {
+		printf("BN_hash2bn() test failed\n");
+		return 0;
+	}
+
+	printf("BN_hash2bn() test passed\n");
+	return 1;
 }
 #endif
-#endif
+

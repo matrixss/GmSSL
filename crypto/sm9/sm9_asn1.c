@@ -53,15 +53,41 @@
 #include <openssl/asn1.h>
 #include <openssl/asn1t.h>
 #include <openssl/objects.h>
+#include <openssl/pairing.h>
 #include <openssl/sm9.h>
 
-#ifndef NO_GMSSL
+
+ASN1_SEQUENCE(SM9PublicParameters) = {
+	ASN1_SIMPLE(SM9PublicParameters, named, ASN1_OBJECT),
+	ASN1_SIMPLE(SM9PublicParameters, Ppub, ASN1_OCTET_STRING)
+} ASN1_SEQUENCE_END(SM9PublicParameters)
+IMPLEMENT_ASN1_FUNCTIONS(SM9PublicParameters)
+IMPLEMENT_ASN1_DUP_FUNCTION(SM9PublicParameters)
+
+ASN1_SEQUENCE(SM9MasterSecret) = {
+	ASN1_SIMPLE(SM9MasterSecret, ks, BIGNUM)
+} ASN1_SEQUENCE_END(SM9MasterSecret)
+IMPLEMENT_ASN1_FUNCTIONS(SM9MasterSecret)
+IMPLEMENT_ASN1_DUP_FUNCTION(SM9MasterSecret)
+
+ASN1_SEQUENCE(SM9PrivateKey) = {
+	ASN1_SIMPLE(SM9PrivateKey, ds, BIGNUM)
+} ASN1_SEQUENCE_END(SM9PrivateKey)
+IMPLEMENT_ASN1_FUNCTIONS(SM9PrivateKey)
+IMPLEMENT_ASN1_DUP_FUNCTION(SM9PrivateKey)
+
+ASN1_SEQUENCE(SM9Ciphertext) = {
+	ASN1_SIMPLE(SM9Ciphertext, c1, ASN1_OCTET_STRING),
+	ASN1_SIMPLE(SM9Ciphertext, c2, ASN1_OCTET_STRING),
+	ASN1_SIMPLE(SM9Ciphertext, c3, ASN1_OCTET_STRING)
+} ASN1_SEQUENCE_END(SM9Ciphertext)
+IMPLEMENT_ASN1_FUNCTIONS(SM9Ciphertext)
+IMPLEMENT_ASN1_DUP_FUNCTION(SM9Ciphertext)
 
 ASN1_SEQUENCE(SM9Signature) = {
 	ASN1_SIMPLE(SM9Signature, h, BIGNUM),
 	ASN1_SIMPLE(SM9Signature, s, ASN1_OCTET_STRING)
 } ASN1_SEQUENCE_END(SM9Signature)
 IMPLEMENT_ASN1_FUNCTIONS(SM9Signature)
-MPLEMENT_ASN1_DUP_FUNCTION(SM9Signature)
+IMPLEMENT_ASN1_DUP_FUNCTION(SM9Signature)
 
-#endif

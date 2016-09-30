@@ -52,7 +52,6 @@
 #include <openssl/sm9.h>
 
 
-#ifndef NO_GMSSL
 SM9Ciphertext *SM9_do_encrypt(SM9PublicParameters *mpk,
 	const unsigned char *in, size_t inlen, unsigned char *out,
 	size_t *outlen, const char *id, size_t idlen)
@@ -73,15 +72,41 @@ int SM9_encrypt(SM9PublicParameters *mpk,
 	const unsigned char *in, size_t inlen, unsigned char *out,
 	size_t *outlen, const char *id, size_t idlen)
 {
-	SM9err(SM9_F_SM9_ENCRYPT, SM9_R_NOT_IMPLEMENTED);
-	return 0;
+	int ret = 0;
+	SM9Ciphertext *cv = NULL;
+	int len;
+
+	len = SM9Ciphertext_size(mpk, inlen);
+
+	if (!out) {
+		*outlen = (size_t)len;
+		return 1;
+	}
+	if (*outlen < (size_t)len) {
+		SM9err(SM9_F_SM9_ENCRYPT, SM9_R_BUFFER_TOO_SMALL);
+		return 0;
+	}
+
+	if (!(cv = SM9_do_encrypt(mpk, in, inlen, id, idlen))) {
+		SM9err(SM9_F_SM9_ENCRYPT, SM9_R_ENCRYPT_FAILURE);
+		goto end;
+	}
+
+	ret = 1;
+
+end:
+	SM9Ciphertext_free(cv);
+	return ret;
 }
 
 int SM9_decrypt(SM9PublicParameters *mpk,
 	const unsigned char *in, size_t inlen, unsigned char *out,
 	size_t *outlen, SM9PrivateKey *sk)
 {
-	SM9err(SM9_F_SM9_DECRYPT, SM9_R_NOT_IMPLEMENTED);
+	int ret = 0;
+	SM9Ciphertext *cv = NULL;
+	int len;
+
 	return 0;
 }
-#endif
+

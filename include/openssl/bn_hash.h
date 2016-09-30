@@ -1,5 +1,5 @@
 /* ====================================================================
- * Copyright (c) 2014 - 2016 The GmSSL Project.  All rights reserved.
+ * Copyright (c) 2016 The GmSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -47,33 +47,21 @@
  * ====================================================================
  */
 
-#ifndef HEADER_CBCMAC_H
-#define HEADER_CBCMAC_H
+#ifndef HEADER_BN_HASH_H
+#define HEADER_BN_HASH_H
 
+#include <openssl/bn.h>
 #include <openssl/evp.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+/* hash input bytes to bignum in range [0, p - 1] */
+int BN_hash_to_range(const EVP_MD *md, const unsigned char *in, size_t inlen,
+	BIGNUM *bn, const BIGNUM *p);
 
-typedef struct CBCMAC_CTX_st CBCMAC_CTX;
-
-
-CBCMAC_CTX *CBCMAC_CTX_new(void);
-void CBCMAC_CTX_cleanup(CBCMAC_CTX *ctx);
-void CBCMAC_CTX_free(CBCMAC_CTX *ctx);
-
-EVP_CIPHER_CTX *CBCMAC_CTX_get0_cipher_ctx(CBCMAC_CTX *ctx);
-int CBCMAC_CTX_copy(CBCMAC_CTX *to, const CBCMAC_CTX *from);
-
-int CBCMAC_Init(CBCMAC_CTX *ctx, const void *key, size_t keylen,
-	const EVP_CIPHER *cipher, ENGINE *impl);
-int CBCMAC_Update(CBCMAC_CTX *ctx, const void *data, size_t datalen);
-int CBCMAC_Final(CBCMAC_CTX *ctx, unsigned char *out, size_t *outlen);
-int CBCMAC_resume(CBCMAC_CTX *ctx);
-
-#ifdef  __cplusplus
+#ifdef __cplusplus
 }
 #endif
 #endif

@@ -27,6 +27,7 @@ static ERR_STRING_DATA BN_str_functs[] = {
     {ERR_FUNC(BN_F_BN_BLINDING_UPDATE), "BN_BLINDING_update"},
     {ERR_FUNC(BN_F_BN_BN2DEC), "BN_bn2dec"},
     {ERR_FUNC(BN_F_BN_BN2HEX), "BN_bn2hex"},
+    {ERR_FUNC(BN_F_BN_BN2SOLINAS), "BN_bn2solinas"},
     {ERR_FUNC(BN_F_BN_COMPUTE_WNAF), "bn_compute_wNAF"},
     {ERR_FUNC(BN_F_BN_CTX_GET), "BN_CTX_get"},
     {ERR_FUNC(BN_F_BN_CTX_NEW), "BN_CTX_new"},
@@ -45,6 +46,7 @@ static ERR_STRING_DATA BN_str_functs[] = {
     {ERR_FUNC(BN_F_BN_GF2M_MOD_SOLVE_QUAD_ARR), "BN_GF2m_mod_solve_quad_arr"},
     {ERR_FUNC(BN_F_BN_GF2M_MOD_SQR), "BN_GF2m_mod_sqr"},
     {ERR_FUNC(BN_F_BN_GF2M_MOD_SQRT), "BN_GF2m_mod_sqrt"},
+    {ERR_FUNC(BN_F_BN_HASH2BN), "BN_hash2bn"},
     {ERR_FUNC(BN_F_BN_LSHIFT), "BN_lshift"},
     {ERR_FUNC(BN_F_BN_MOD_EXP2_MONT), "BN_mod_exp2_mont"},
     {ERR_FUNC(BN_F_BN_MOD_EXP_MONT), "BN_mod_exp_mont"},
@@ -62,6 +64,7 @@ static ERR_STRING_DATA BN_str_functs[] = {
     {ERR_FUNC(BN_F_BN_RAND_RANGE), "BN_rand_range"},
     {ERR_FUNC(BN_F_BN_RSHIFT), "BN_rshift"},
     {ERR_FUNC(BN_F_BN_SET_WORDS), "bn_set_words"},
+    {ERR_FUNC(BN_F_BN_SOLINAS2BN), "BN_solinas2bn"},
     {ERR_FUNC(BN_F_BN_USUB), "BN_usub"},
     {0, NULL}
 };
@@ -80,6 +83,9 @@ static ERR_STRING_DATA BN_str_reasons[] = {
     {ERR_REASON(BN_R_INVALID_LENGTH), "invalid length"},
     {ERR_REASON(BN_R_INVALID_RANGE), "invalid range"},
     {ERR_REASON(BN_R_INVALID_SHIFT), "invalid shift"},
+    {ERR_REASON(BN_R_INVALID_SOLINAS), "invalid solinas"},
+    {ERR_REASON(BN_R_INVALID_SOLINAS_PARAMETERS),
+     "invalid solinas parameters"},
     {ERR_REASON(BN_R_NOT_A_SQUARE), "not a square"},
     {ERR_REASON(BN_R_NOT_INITIALIZED), "not initialized"},
     {ERR_REASON(BN_R_NO_INVERSE), "no inverse"},

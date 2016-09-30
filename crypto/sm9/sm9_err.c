@@ -25,13 +25,21 @@ static ERR_STRING_DATA SM9_str_functs[] = {
     {ERR_FUNC(SM9_F_SM9_DO_SIGN), "SM9_do_sign"},
     {ERR_FUNC(SM9_F_SM9_DO_VERIFY), "SM9_do_verify"},
     {ERR_FUNC(SM9_F_SM9_ENCRYPT), "SM9_encrypt"},
+    {ERR_FUNC(SM9_F_SM9_EXTRACT_PRIVATE_KEY), "SM9_extract_private_key"},
+    {ERR_FUNC(SM9_F_SM9_HASH1), "SM9_hash1"},
+    {ERR_FUNC(SM9_F_SM9_HASH2), "SM9_hash2"},
+    {ERR_FUNC(SM9_F_SM9_SETUP), "SM9_setup"},
     {ERR_FUNC(SM9_F_SM9_SIGN), "SM9_sign"},
     {ERR_FUNC(SM9_F_SM9_VERIFY), "SM9_verify"},
     {0, NULL}
 };
 
 static ERR_STRING_DATA SM9_str_reasons[] = {
+    {ERR_REASON(SM9_R_BUFFER_TOO_SMALL), "buffer too small"},
+    {ERR_REASON(SM9_R_ENCRYPT_FAILURE), "encrypt failure"},
+    {ERR_REASON(SM9_R_INVALID_CURVE), "invalid curve"},
     {ERR_REASON(SM9_R_NOT_IMPLEMENTED), "not implemented"},
+    {ERR_REASON(SM9_R_UNKNOWN_CURVE), "unknown curve"},
     {0, NULL}
 };
 

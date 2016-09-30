@@ -1,5 +1,5 @@
 /* ====================================================================
- * Copyright (c) 2014 - 2016 The GmSSL Project.  All rights reserved.
+ * Copyright (c) 2016 The GmSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -47,33 +47,45 @@
  * ====================================================================
  */
 
-#ifndef HEADER_CBCMAC_H
-#define HEADER_CBCMAC_H
+#ifndef HEADER_BN_SOLINAS_H
+#define HEADER_BN_SOLINAS_H
 
-#include <openssl/evp.h>
+#include <openssl/bn.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+/* solinas prime = 2^a + s * 2^b + c */
+typedef struct {
+	int a;
+	int b;
+	int s;
+	int c;
+} BN_SOLINAS;
 
-typedef struct CBCMAC_CTX_st CBCMAC_CTX;
+int BN_bn2solinas(const BIGNUM *bn, BN_SOLINAS *solinas);
+int BN_solinas2bn(const BN_SOLINAS *solinas, BIGNUM *bn);
+int BN_is_solinas(const BIGNUM *bn);
+
+/*
+ * the following Solinas primes are from
+ * "Solinas primes of small weight for fixed sizes"
+ * https://eprint.iacr.org/2010/058.pdf
+ *
+ * 2^192 - 2^16  - 1
+ * 2^192 - 2^64  - 1
+ * 2^224 - 2^96  + 1
+ * 2^256 - 2^168 + 1
+ * 2^384 - 2^80  + 1
+ * 2^512 - 2^32  + 1
+ * 2^512 - 2^32  - 1
+ * 2^1024 - 2^424 - 1
+ * 2^1024 - 2^856 + 1
+ */
 
 
-CBCMAC_CTX *CBCMAC_CTX_new(void);
-void CBCMAC_CTX_cleanup(CBCMAC_CTX *ctx);
-void CBCMAC_CTX_free(CBCMAC_CTX *ctx);
-
-EVP_CIPHER_CTX *CBCMAC_CTX_get0_cipher_ctx(CBCMAC_CTX *ctx);
-int CBCMAC_CTX_copy(CBCMAC_CTX *to, const CBCMAC_CTX *from);
-
-int CBCMAC_Init(CBCMAC_CTX *ctx, const void *key, size_t keylen,
-	const EVP_CIPHER *cipher, ENGINE *impl);
-int CBCMAC_Update(CBCMAC_CTX *ctx, const void *data, size_t datalen);
-int CBCMAC_Final(CBCMAC_CTX *ctx, unsigned char *out, size_t *outlen);
-int CBCMAC_resume(CBCMAC_CTX *ctx);
-
-#ifdef  __cplusplus
+#ifdef __cplusplus
 }
 #endif
 #endif

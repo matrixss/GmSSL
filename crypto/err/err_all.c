@@ -40,10 +40,11 @@
 #include <openssl/async.h>
 #include <openssl/kdf.h>
 #ifndef NO_GMSSL
-#include <openssl/cpk.h>
-#include <openssl/sm9.h>
-#include <openssl/gmapi.h>
-#include <openssl/paillier.h>
+# include <openssl/cpk.h>
+# include <openssl/sm9.h>
+# include <openssl/gmapi.h>
+# include <openssl/pairing.h>
+# include <openssl/paillier.h>
 #endif
 
 int err_load_crypto_strings_int(void)
@@ -59,6 +60,7 @@ int err_load_crypto_strings_int(void)
         ERR_load_CPK_strings() == 0 ||
         ERR_load_SM9_strings() == 0 ||
         ERR_load_GMAPI_strings() == 0 ||
+        ERR_load_PAIRING_strings() == 0 ||
         ERR_load_PAILLIER_strings() == 0 ||
 # endif
 # ifndef OPENSSL_NO_RSA
