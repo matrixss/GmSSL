@@ -145,6 +145,17 @@ int EVP_DigestInit_ex(EVP_MD_CTX *ctx, const EVP_MD *type, ENGINE *impl)
 
 int EVP_DigestUpdate(EVP_MD_CTX *ctx, const void *data, size_t count)
 {
+#ifndef NO_GMSSL
+#if 0
+    if (ctx->pctx && EVP_PKEY_id(ctx->pctx->pkey) == EVP_PKEY_EC) {
+        unsigned char hid[EVP_MAX_MD_SIZE];
+        unsigned int hidlen = EVP_MAX_MD_SIZE;
+        EVP_PKEY_CTX_get_sm2_id_digest(ctx, hid, &hidlen);
+        ctx->update(ctx, hid, hidlen);
+        /* need to set a flag to update hid only once */
+    }
+#endif
+#endif
     return ctx->update(ctx, data, count);
 }
 

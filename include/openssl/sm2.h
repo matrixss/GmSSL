@@ -66,16 +66,33 @@ extern "C" {
 
 #define SM2_MAX_ID_BITS				65535
 #define SM2_MAX_ID_LENGTH			(SM2_MAX_ID_BITS/8)
+
 #define SM2_DEFAULT_ID_GMT09			"1234567812345678"
 #define SM2_DEFAULT_ID_GMSSL			"anonym@gmssl.org"
 #define SM2_DEFAULT_ID				SM2_DEFAULT_ID_GMSSL
+#define SM2_DEFAULT_ID_LENGTH			(sizeof(SM2_DEFAULT_ID) - 1)
+#define SM2_DEFAULT_ID_BITS			(SM2_DEFAULT_ID_LENGTH * 8)
+#define SM2_ID_DIGEST_LENGTH			SM3_DIGEST_LENGTH
+
 #define SM2_DEFAULT_POINT_CONVERSION_FORM	POINT_CONVERSION_UNCOMPRESSED
 
-#define SM2_ID_DIGEST_LENGTH			32
+#define SM2_MAX_PKEY_DATA_LENGTH		((EC_MAX_NBYTES + 1) * 6)
 
-int SM2_set_id(EC_KEY *ec_key, const char *id);
-int SM2_compute_id_digest(unsigned char *dgst, const EVP_MD *md,
-	const char *id, EC_KEY *ec_key);
+
+
+int SM2_get_public_key_data(EC_KEY *ec_key, unsigned char *out, size_t *outlen);
+
+int SM2_compute_id_digest(const EVP_MD *md, const char *id, size_t idlen,
+	unsigned char *out, unsigned int *outlen, EC_KEY *ec_key);
+
+/*
+ * Generate GM/T 0003.2-2012 message digest for SM2 signature scheme.
+ * Return dgst = msg_md( id_md(id, ec_key) || msg )
+ */
+int SM2_compute_message_digest(const EVP_MD *id_md, const EVP_MD *msg_md,
+	const unsigned char *msg, size_t msglen, const char *id, size_t idlen,
+	unsigned char *out, unsigned char *outlen,
+	EC_KEY *ec_key);
 
 
 typedef struct sm2_enc_params_st {
@@ -108,13 +125,14 @@ int SM2_CIPHERTEXT_VALUE_encode(const SM2_CIPHERTEXT_VALUE *cv,
 	unsigned char *buf, size_t *buflen);
 SM2_CIPHERTEXT_VALUE *SM2_CIPHERTEXT_VALUE_decode(const EC_GROUP *ec_group,
 	const SM2_ENC_PARAMS *params, const unsigned char *buf, size_t buflen);
+
 int i2d_SM2_CIPHERTEXT_VALUE(const EC_GROUP *group,
 	const SM2_CIPHERTEXT_VALUE *c, unsigned char **out);
 SM2_CIPHERTEXT_VALUE *d2i_SM2_CIPHERTEXT_VALUE(const EC_GROUP *group,
 	SM2_CIPHERTEXT_VALUE **c, const unsigned char **in, long len);
+
 int SM2_CIPHERTEXT_VALUE_print(BIO *out, const EC_GROUP *ec_group,
 	const SM2_CIPHERTEXT_VALUE *cv, int indent, unsigned long flags);
-
 
 SM2_CIPHERTEXT_VALUE *SM2_do_encrypt(const SM2_ENC_PARAMS *params,
 	const unsigned char *in, size_t inlen, EC_KEY *ec_key);
@@ -129,17 +147,13 @@ int SM2_decrypt(const SM2_ENC_PARAMS *params,
 	const unsigned char *in, size_t inlen,
 	unsigned char *out, size_t *outlen,
 	EC_KEY *ec_key);
+
+/* Stable APIs */
 int SM2_encrypt_with_recommended(const unsigned char *in, size_t inlen,
 	unsigned char *out, size_t *outlen, EC_KEY *ec_key);
 int SM2_decrypt_with_recommended(const unsigned char *in, size_t inlen,
 	unsigned char *out, size_t *outlen, EC_KEY *ec_key);
 
-
-int SM2_compute_message_digest(const EVP_MD *id_md, const EVP_MD *msg_md,
-	const void *msg, size_t msglen, unsigned char *dgst,
-	unsigned int *dgstlen, EC_KEY *ec_key);
-int SM2_digest(const void *msg, size_t msglen, unsigned char *dgst,
-	unsigned int *dgstlen, EC_KEY *ec_key);
 
 #define SM2_signature_size(ec_key)	ECDSA_size(ec_key)
 int SM2_sign_setup(EC_KEY *ec_key, BN_CTX *ctx, BIGNUM **a, BIGNUM **b);
@@ -152,6 +166,8 @@ int SM2_do_verify(const unsigned char *dgst, int dgstlen,
 int SM2_sign_ex(int type, const unsigned char *dgst, int dgstlen,
 	unsigned char *sig, unsigned int *siglen,
 	const BIGNUM *k, const BIGNUM *x, EC_KEY *ec_key);
+
+/* Stable APIs */
 int SM2_sign(int type, const unsigned char *dgst, int dgstlen,
 	unsigned char *sig, unsigned int *siglen, EC_KEY *eckey);
 #define SM2_VERIFY_SUCCESS	 1
@@ -192,8 +208,10 @@ typedef struct sm2_kap_ctx_st {
 	unsigned char checksum[EVP_MAX_MD_SIZE];
 } SM2_KAP_CTX;
 
-int SM2_KAP_CTX_init(SM2_KAP_CTX *ctx, EC_KEY *ec_key,
-	EC_KEY *remote_pubkey, int is_initiator, int do_checksum);
+int SM2_KAP_CTX_init(SM2_KAP_CTX *ctx,
+	EC_KEY *ec_key, const char *id, size_t idlen,
+	EC_KEY *remote_pubkey, const char *rid, size_t ridlen,
+	int is_initiator, int do_checksum);
 int SM2_KAP_prepare(SM2_KAP_CTX *ctx, unsigned char *ephem_point,
 	size_t *ephem_point_len);
 int SM2_KAP_compute_key(SM2_KAP_CTX *ctx, const unsigned char *remote_ephem_point,

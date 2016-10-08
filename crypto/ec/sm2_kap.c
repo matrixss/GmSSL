@@ -54,11 +54,18 @@
 #include <openssl/sm2.h>
 #include <openssl/kdf.h>
 
-int SM2_KAP_CTX_init(SM2_KAP_CTX *ctx, EC_KEY *ec_key,
-	EC_KEY *remote_pubkey, int is_initiator, int do_checksum)
+int SM2_KAP_CTX_init(SM2_KAP_CTX *ctx,
+	EC_KEY *ec_key, const char *id, size_t idlen,
+	EC_KEY *remote_pubkey, const char *rid, size_t ridlen,
+	int is_initiator, int do_checksum)
 {
 	int ret = 0;
 	int w;
+
+	if (!ctx || !ec_key || !remote_pubkey) {
+		ECerr(EC_F_SM2_KAP_CTX_INIT, ERR_R_PASSED_NULL_PARAMETER);
+		return 0;
+	}
 
 	memset(ctx, 0, sizeof(*ctx));
 
@@ -68,7 +75,7 @@ int SM2_KAP_CTX_init(SM2_KAP_CTX *ctx, EC_KEY *ec_key,
 	ctx->point_form = SM2_DEFAULT_POINT_CONVERSION_FORM;
 
 	if (!(ctx->kdf = KDF_get_x9_63(ctx->kdf_md))) {
-		ECerr(EC_F_SM2_KAP_CTX_INIT, 0);
+		ECerr(EC_F_SM2_KAP_CTX_INIT, EC_R_INVALID_KDF_MD);
 		goto end;
 	}
 
@@ -81,8 +88,8 @@ int SM2_KAP_CTX_init(SM2_KAP_CTX *ctx, EC_KEY *ec_key,
 		goto end;
 	}
 
-	if (!SM2_compute_id_digest(ctx->id_dgst_md, ctx->id_dgst,
-		&ctx->id_dgstlen, ec_key)) {
+	if (!SM2_compute_id_digest(ctx->id_dgst_md, id, idlen,
+		ctx->id_dgst, &ctx->id_dgstlen, ec_key)) {
 		ECerr(EC_F_SM2_KAP_CTX_INIT, 0);
 		goto end;
 	}
@@ -92,8 +99,8 @@ int SM2_KAP_CTX_init(SM2_KAP_CTX *ctx, EC_KEY *ec_key,
 		goto end;
 	}
 
-	if (!SM2_compute_id_digest(ctx->id_dgst_md, ctx->remote_id_dgst,
-		&ctx->remote_id_dgstlen, remote_pubkey)) {
+	if (!SM2_compute_id_digest(ctx->id_dgst_md, rid, ridlen,
+		ctx->remote_id_dgst, &ctx->remote_id_dgstlen, remote_pubkey)) {
 		ECerr(EC_F_SM2_KAP_CTX_INIT, 0);
 		goto end;
 	}
@@ -145,15 +152,16 @@ end:
 
 void SM2_KAP_CTX_cleanup(SM2_KAP_CTX *ctx)
 {
-	if (ctx->ec_key) EC_KEY_free(ctx->ec_key);
-	if (ctx->remote_pubkey) EC_KEY_free(ctx->remote_pubkey);
-	if (ctx->bn_ctx) BN_CTX_free(ctx->bn_ctx);
-	if (ctx->two_pow_w) BN_free(ctx->two_pow_w);
-	if (ctx->order) BN_free(ctx->order);
-	if (ctx->point) EC_POINT_free(ctx->point);
-	if (ctx->t) BN_free(ctx->t);
-
-	memset(ctx, 0, sizeof(*ctx));
+	if (ctx) {
+		EC_KEY_free(ctx->ec_key);
+		EC_KEY_free(ctx->remote_pubkey);
+		BN_CTX_free(ctx->bn_ctx);
+		BN_free(ctx->two_pow_w);
+		BN_free(ctx->order);
+		EC_POINT_free(ctx->point);
+		BN_free(ctx->t);
+		memset(ctx, 0, sizeof(*ctx));
+	}
 }
 
 /* FIXME: ephem_point_len should be both input and output */
@@ -400,14 +408,14 @@ int SM2_KAP_compute_key(SM2_KAP_CTX *ctx, const unsigned char *remote_point,
 		/* generate checksum S1 or SB start with 0x02
 		 * S1 = SB = Hash(0x02, yu, Hash(xu, ZA, ZB, x1, y1, x2, y2))
 		 */
-		if (!EVP_DigestInit_ex(&md_ctx, ctx->checksum_md, NULL)) {
+		if (!EVP_DigestInit_ex(md_ctx, ctx->checksum_md, NULL)) {
 			ECerr(EC_F_SM2_KAP_COMPUTE_KEY, ERR_R_EVP_LIB);
 			goto end;
 		}
 
 		bnlen = BN_num_bytes(ctx->order);
 
-		if (!EVP_DigestUpdate(&md_ctx, share_pt_buf + 1, bnlen)) {
+		if (!EVP_DigestUpdate(md_ctx, share_pt_buf + 1, bnlen)) {
 			ECerr(EC_F_SM2_KAP_COMPUTE_KEY, ERR_R_EVP_LIB);
 			goto end;
 		}
@@ -415,44 +423,44 @@ int SM2_KAP_compute_key(SM2_KAP_CTX *ctx, const unsigned char *remote_point,
 		if (ctx->is_initiator) {
 
 			/* update ZA,ZB,x1,y1,x2,y2 */
-			if (!EVP_DigestUpdate(&md_ctx, ctx->id_dgst, ctx->id_dgstlen)) {
+			if (!EVP_DigestUpdate(md_ctx, ctx->id_dgst, ctx->id_dgstlen)) {
 				ECerr(EC_F_SM2_KAP_COMPUTE_KEY, ERR_R_EVP_LIB);
 				goto end;
 			}
-			if (!EVP_DigestUpdate(&md_ctx, ctx->remote_id_dgst, ctx->remote_id_dgstlen)) {
+			if (!EVP_DigestUpdate(md_ctx, ctx->remote_id_dgst, ctx->remote_id_dgstlen)) {
 				ECerr(EC_F_SM2_KAP_COMPUTE_KEY, ERR_R_EVP_LIB);
 				goto end;
 			}
-			if (!EVP_DigestUpdate(&md_ctx, ctx->pt_buf + 1, bnlen * 2)) {
+			if (!EVP_DigestUpdate(md_ctx, ctx->pt_buf + 1, bnlen * 2)) {
 				ECerr(EC_F_SM2_KAP_COMPUTE_KEY, ERR_R_EVP_LIB);
 				goto end;
 			}
-			if (!EVP_DigestUpdate(&md_ctx, remote_pt_buf + 1, bnlen * 2)) {
+			if (!EVP_DigestUpdate(md_ctx, remote_pt_buf + 1, bnlen * 2)) {
 				ECerr(EC_F_SM2_KAP_COMPUTE_KEY, ERR_R_EVP_LIB);
 				goto end;
 			}
 
 		} else {
 
-			if (!EVP_DigestUpdate(&md_ctx, ctx->remote_id_dgst, ctx->remote_id_dgstlen)) {
+			if (!EVP_DigestUpdate(md_ctx, ctx->remote_id_dgst, ctx->remote_id_dgstlen)) {
 				ECerr(EC_F_SM2_KAP_COMPUTE_KEY, ERR_R_EVP_LIB);
 				goto end;
 			}
-			if (!EVP_DigestUpdate(&md_ctx, ctx->id_dgst, ctx->id_dgstlen)) {
+			if (!EVP_DigestUpdate(md_ctx, ctx->id_dgst, ctx->id_dgstlen)) {
 				ECerr(EC_F_SM2_KAP_COMPUTE_KEY, ERR_R_EVP_LIB);
 				goto end;
 			}
-			if (!EVP_DigestUpdate(&md_ctx, remote_pt_buf + 1, bnlen * 2)) {
+			if (!EVP_DigestUpdate(md_ctx, remote_pt_buf + 1, bnlen * 2)) {
 				ECerr(EC_F_SM2_KAP_COMPUTE_KEY, ERR_R_EVP_LIB);
 				goto end;
 			}
-			if (!EVP_DigestUpdate(&md_ctx, ctx->pt_buf + 1, bnlen * 2)) {
+			if (!EVP_DigestUpdate(md_ctx, ctx->pt_buf + 1, bnlen * 2)) {
 				ECerr(EC_F_SM2_KAP_COMPUTE_KEY, ERR_R_EVP_LIB);
 				goto end;
 			}
 		}
 
-		if (!EVP_DigestFinal_ex(&md_ctx, dgst, &dgstlen)) {
+		if (!EVP_DigestFinal_ex(md_ctx, dgst, &dgstlen)) {
 			ECerr(EC_F_SM2_KAP_COMPUTE_KEY, ERR_R_EVP_LIB);
 			goto end;
 		}
@@ -461,35 +469,35 @@ int SM2_KAP_compute_key(SM2_KAP_CTX *ctx, const unsigned char *remote_point,
 
 		/* S1 = SB = Hash(0x02, yu, dgst) */
 
-		if (!EVP_DigestInit_ex(&md_ctx, ctx->checksum_md, NULL)) {
+		if (!EVP_DigestInit_ex(md_ctx, ctx->checksum_md, NULL)) {
 			ECerr(EC_F_SM2_KAP_COMPUTE_KEY, ERR_R_EVP_LIB);
 			goto end;
 		}
 
-		if (!EVP_DigestUpdate(&md_ctx, "\x02", 1)) {
+		if (!EVP_DigestUpdate(md_ctx, "\x02", 1)) {
 			ECerr(EC_F_SM2_KAP_COMPUTE_KEY, ERR_R_EVP_LIB);
 			goto end;
 		}
 
-		if (!EVP_DigestUpdate(&md_ctx, share_pt_buf + 1 + bnlen, bnlen)) {
+		if (!EVP_DigestUpdate(md_ctx, share_pt_buf + 1 + bnlen, bnlen)) {
 			ECerr(EC_F_SM2_KAP_COMPUTE_KEY, ERR_R_EVP_LIB);
 			goto end;
 		}
 
-		if (!EVP_DigestUpdate(&md_ctx, dgst, dgstlen)) {
+		if (!EVP_DigestUpdate(md_ctx, dgst, dgstlen)) {
 			ECerr(EC_F_SM2_KAP_COMPUTE_KEY, ERR_R_EVP_LIB);
 			goto end;
 		}
 
 		/* output S1 to local buffer or SB to output */
 		if (ctx->is_initiator) {
-			if (!EVP_DigestFinal_ex(&md_ctx, ctx->checksum, &len)) {
+			if (!EVP_DigestFinal_ex(md_ctx, ctx->checksum, &len)) {
 				ECerr(EC_F_SM2_KAP_COMPUTE_KEY, ERR_R_EVP_LIB);
 				goto end;
 			}
 
 		} else {
-			if (!EVP_DigestFinal_ex(&md_ctx, checksum, &len)) {
+			if (!EVP_DigestFinal_ex(md_ctx, checksum, &len)) {
 				ECerr(EC_F_SM2_KAP_COMPUTE_KEY, ERR_R_EVP_LIB);
 				goto end;
 			}
@@ -500,35 +508,35 @@ int SM2_KAP_compute_key(SM2_KAP_CTX *ctx, const unsigned char *remote_point,
 		 * SA = S2 = Hash(0x03, yu, dgst)
 		 */
 
-		if (!EVP_DigestInit_ex(&md_ctx, ctx->checksum_md, NULL)) {
+		if (!EVP_DigestInit_ex(md_ctx, ctx->checksum_md, NULL)) {
 			ECerr(EC_F_SM2_KAP_COMPUTE_KEY, ERR_R_EVP_LIB);
 			goto end;
 		}
 
-		if (!EVP_DigestUpdate(&md_ctx, "\x03", 1)) {
+		if (!EVP_DigestUpdate(md_ctx, "\x03", 1)) {
 			ECerr(EC_F_SM2_KAP_COMPUTE_KEY, ERR_R_EVP_LIB);
 			goto end;
 		}
 
-		if (!EVP_DigestUpdate(&md_ctx, share_pt_buf + 1 + bnlen, bnlen)) {
+		if (!EVP_DigestUpdate(md_ctx, share_pt_buf + 1 + bnlen, bnlen)) {
 			ECerr(EC_F_SM2_KAP_COMPUTE_KEY, ERR_R_EVP_LIB);
 			goto end;
 		}
 
-		if (!EVP_DigestUpdate(&md_ctx, dgst, dgstlen)) {
+		if (!EVP_DigestUpdate(md_ctx, dgst, dgstlen)) {
 			ECerr(EC_F_SM2_KAP_COMPUTE_KEY, ERR_R_EVP_LIB);
 			goto end;
 		}
 
 		if (ctx->is_initiator) {
-			if (!EVP_DigestFinal_ex(&md_ctx, checksum, &len)) {
+			if (!EVP_DigestFinal_ex(md_ctx, checksum, &len)) {
 				ECerr(EC_F_SM2_KAP_COMPUTE_KEY, ERR_R_EVP_LIB);
 				goto end;
 			}
 			*checksumlen = len;
 
 		} else {
-			if (!EVP_DigestFinal_ex(&md_ctx, ctx->checksum, &len)) {
+			if (!EVP_DigestFinal_ex(md_ctx, ctx->checksum, &len)) {
 				ECerr(EC_F_SM2_KAP_COMPUTE_KEY, ERR_R_EVP_LIB);
 				goto end;
 			}
@@ -549,15 +557,14 @@ int SM2_KAP_final_check(SM2_KAP_CTX *ctx, const unsigned char *checksum,
 	size_t checksumlen)
 {
 	if (ctx->do_checksum) {
-
 		if (checksumlen != EVP_MD_size(ctx->checksum_md)) {
+			ECerr(EC_F_SM2_KAP_FINAL_CHECK, EC_R_INVALID_SM2_KAP_CHECKSUM_LENGTH);
 			return 0;
 		}
-
 		if (memcmp(ctx->checksum, checksum, checksumlen)) {
+			ECerr(EC_F_SM2_KAP_FINAL_CHECK, EC_R_INVALID_SM2_KAP_CHECKSUM_VALUE);
 			return 0;
 		}
-
 	}
 
 	return 1;

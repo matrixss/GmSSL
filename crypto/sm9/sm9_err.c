@@ -23,12 +23,14 @@ static ERR_STRING_DATA SM9_str_functs[] = {
     {ERR_FUNC(SM9_F_SM9_DO_DECRYPT), "SM9_do_decrypt"},
     {ERR_FUNC(SM9_F_SM9_DO_ENCRYPT), "SM9_do_encrypt"},
     {ERR_FUNC(SM9_F_SM9_DO_SIGN), "SM9_do_sign"},
+    {ERR_FUNC(SM9_F_SM9_DO_SIGN_TYPE1CURVE), "SM9_do_sign_type1curve"},
     {ERR_FUNC(SM9_F_SM9_DO_VERIFY), "SM9_do_verify"},
     {ERR_FUNC(SM9_F_SM9_ENCRYPT), "SM9_encrypt"},
     {ERR_FUNC(SM9_F_SM9_EXTRACT_PRIVATE_KEY), "SM9_extract_private_key"},
     {ERR_FUNC(SM9_F_SM9_HASH1), "SM9_hash1"},
     {ERR_FUNC(SM9_F_SM9_HASH2), "SM9_hash2"},
     {ERR_FUNC(SM9_F_SM9_SETUP), "SM9_setup"},
+    {ERR_FUNC(SM9_F_SM9_SETUP_TYPE1CURVE), "SM9_setup_type1curve"},
     {ERR_FUNC(SM9_F_SM9_SIGN), "SM9_sign"},
     {ERR_FUNC(SM9_F_SM9_VERIFY), "SM9_verify"},
     {0, NULL}
@@ -38,8 +40,15 @@ static ERR_STRING_DATA SM9_str_reasons[] = {
     {ERR_REASON(SM9_R_BUFFER_TOO_SMALL), "buffer too small"},
     {ERR_REASON(SM9_R_ENCRYPT_FAILURE), "encrypt failure"},
     {ERR_REASON(SM9_R_INVALID_CURVE), "invalid curve"},
+    {ERR_REASON(SM9_R_INVALID_DIGEST), "invalid digest"},
+    {ERR_REASON(SM9_R_INVALID_ID), "invalid id"},
+    {ERR_REASON(SM9_R_INVALID_MD), "invalid md"},
+    {ERR_REASON(SM9_R_INVALID_TYPE1CURVE), "invalid type1curve"},
     {ERR_REASON(SM9_R_NOT_IMPLEMENTED), "not implemented"},
+    {ERR_REASON(SM9_R_NOT_NAMED_CURVE), "not named curve"},
+    {ERR_REASON(SM9_R_PARSE_PAIRING), "parse pairing"},
     {ERR_REASON(SM9_R_UNKNOWN_CURVE), "unknown curve"},
+    {ERR_REASON(SM9_R_ZERO_ID), "zero id"},
     {0, NULL}
 };
 

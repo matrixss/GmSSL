@@ -54,58 +54,99 @@
 #include <openssl/ec.h>
 #include <openssl/evp.h>
 #include <openssl/asn1.h>
+#include <openssl/pairing.h>
+
+/* Curve ID */
+#define SM9_CID_TYPE0CURVE	0x10
+#define SM9_CID_TYPE1CURVE	0x11
+#define SM9_CID_TYPE2CURVE	0x12
+
+/* Pairing ID */
+#define SM9_EID_TATE		0x01
+#define SM9_EID_WEIL		0x02
+#define SM9_EID_ATE		0x03
+#define SM9_EID_RATE		0x04
+
+#define SM9_MAX_ID_LENGTH	127
+
+/* not clear what it is */
+#define SM9_HID			0xc9
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* system setup */
-
 typedef struct SM9PublicParameters_st {
 	ASN1_OBJECT *curve;
-	ASN1_OCTET_STRING *Ppub;
+	BIGNUM *p;
+	BIGNUM *a;
+	BIGNUM *b;
+	BIGNUM *beta;
+	BIGNUM *order;
+	BIGNUM *cofactor;
+	BIGNUM *k;
+	ASN1_OCTET_STRING *pointP1;
+	ASN1_OCTET_STRING *pointP2;
+	ASN1_OBJECT *pairing;
+	ASN1_OCTET_STRING *pointPpub;
+	BIGNUM *g1; /* g1 = e(P1, Ppub) */
+	BIGNUM *g2; /* g2 = e(Ppub, P2) */
+	ASN1_OBJECT *hashfcn;
 } SM9PublicParameters;
 DECLARE_ASN1_FUNCTIONS(SM9PublicParameters)
 
 typedef struct SM9MasterSecret_st {
-	BIGNUM *ks;
+	BIGNUM *masterSecret;
 } SM9MasterSecret;
 DECLARE_ASN1_FUNCTIONS(SM9MasterSecret)
 
-int SM9_setup(int curve, SM9PublicParameters **mpk, SM9MasterSecret **msk);
-
-/* private key extract */
-
 typedef struct SM9PrivateKey_st {
-	ASN1_OCTET_STRING *ds;
+	ASN1_OCTET_STRING *privatePoint;
 } SM9PrivateKey;
 DECLARE_ASN1_FUNCTIONS(SM9PrivateKey)
 
-SM9PrivateKey *SM9_extract_private_key(SM9PublicParameters *mpk,
-	SM9MasterSecret *msk, const char *id, size_t idlen);
-
-/* encrypt */
-
-typedef struct SM9EncapKey_st {
-	ASN1_OCTET_STRING *K;
-	ASN1_OCTET_STRING *C;
-} SM9EncapKey;
-DECLARE_ASN1_FUNCTIONS(SM9EncapKey)
-
 typedef struct SM9Ciphertext_st {
-	ASN1_OCTET_STRING *C1;
-	ASN1_OCTET_STRING *C2;
-	ASN1_OCTET_STRING *C3;
+	ASN1_OCTET_STRING *pointC1;
+	ASN1_OCTET_STRING *c2;
+	ASN1_OCTET_STRING *c3;
 } SM9Ciphertext;
 DECLARE_ASN1_FUNCTIONS(SM9Ciphertext)
 
-SM9Ciphertext *SM9_do_encrypt(SM9PublicParameters *mpk,
-	const unsigned char *in, size_t inlen,
-	unsigned char *out, size_t *outlen,
+typedef struct SM9Signature_st {
+	BIGNUM *h;
+	ASN1_OCTET_STRING *pointS;
+} SM9Signature;
+DECLARE_ASN1_FUNCTIONS(SM9Signature)
+
+typedef struct {
+	const EVP_MD *kdf_md;
+	const EVP_CIPHER *enc_cipher;
+	const EVP_CIPHER *cmac_cipher;
+	const EVP_MD *hmac_md;
+} SM9EncParameters;
+
+int SM9_setup_type1curve(const EC_GROUP *group, const EVP_MD *md,
+	SM9PublicParameters **mpk, SM9MasterSecret **msk);
+SM9PrivateKey *SM9_extract_private_key(SM9PublicParameters *mpk,
+	SM9MasterSecret *msk, const char *id, size_t idlen);
+
+
+int SM9_wrap_key(SM9PublicParameters *mpk, KDF_FUNC kdf_func,
+	unsigned char *key, size_t keylen,
+	unsigned char *wrapped, size_t *wrappedlen,
 	const char *id, size_t idlen);
-int SM9_do_decrypt(SM9PublicParameters *mpk,
+int SM9_unwrap_key(SM9PublicParameters *mpk, KDF_FUNC kdf_func,
+	unsigned char *key, size_t keylen,
+	const unsigned char *wrapped, size_t wrappedlen,
+	SM9PrivateKey *sk);
+
+SM9Ciphertext *SM9_do_encrypt(SM9PublicParameters *mpk,
+	SM9EncParameters *param, const unsigned char *in, size_t inlen,
+	const char *id, size_t idlen);
+int SM9_do_decrypt(SM9PublicParameters *mpk, SM9EncParameters *param,
 	const SM9Ciphertext *in, unsigned char *out, size_t *outlen,
 	SM9PrivateKey *sk);
+
 int SM9_encrypt(SM9PublicParameters *mpk,
 	const unsigned char *in, size_t inlen,
 	unsigned char *out, size_t *outlen,
@@ -114,14 +155,6 @@ int SM9_decrypt(SM9PublicParameters *mpk,
 	const unsigned char *in, size_t inlen,
 	unsigned char *out, size_t *outlen,
 	SM9PrivateKey *sk);
-
-/* sign */
-
-typedef struct SM9Signature_st {
-	ASN1_OCTET_STRING *h;
-	ASN1_OCTET_STRING *S;
-} SM9Signature;
-DECLARE_ASN1_FUNCTIONS(SM9Signature)
 
 SM9Signature *SM9_do_sign(SM9PublicParameters *mpk,
 	const unsigned char *dgst, size_t dgstlen,
@@ -136,23 +169,13 @@ int SM9_verify(SM9PublicParameters *mpk, const unsigned char *dgst,
 	size_t dgstlen, const unsigned char *sig, size_t siglen,
 	const char *id, size_t idlen);
 
-/* key exchange */
+int SM9_hash1(const EVP_MD *md, BIGNUM **r, const char *id, size_t idlen,
+	unsigned char hid, const BIGNUM *range, BN_CTX *ctx);
 
-
-#define SM9_CID_NONSUPERSINGULAR	0x10
-#define SM9_CID_SUPERSINGULAR		0x11
-#define SM9_EID_TATE			0x01
-#define SM9_EID_WEIL			0x02
-#define SM9_EID_ATE			0x03
-#define SM9_EID_R_ATE			0x04
-
-
-
-BIGNUM *SM9_hash1(const EVP_MD *md, const unsigned char *z, size_t zlen,
-	const BIGNUM *range);
-BIGNUM *SM9_hash2(const EVP_MD *md, const unsigned char *z, size_t zlen,
-	const BIGNUM *range);
-
+int SM9_hash2(const EVP_MD *md, BIGNUM **r,
+	const unsigned char *data, size_t datalen,
+	const unsigned char *elem, size_t elemlen,
+	const BIGNUM *range, BN_CTX *ctx);
 
 
 /* BEGIN ERROR CODES */
@@ -170,12 +193,14 @@ int ERR_load_SM9_strings(void);
 # define SM9_F_SM9_DO_DECRYPT                             101
 # define SM9_F_SM9_DO_ENCRYPT                             102
 # define SM9_F_SM9_DO_SIGN                                103
+# define SM9_F_SM9_DO_SIGN_TYPE1CURVE                     113
 # define SM9_F_SM9_DO_VERIFY                              104
 # define SM9_F_SM9_ENCRYPT                                105
 # define SM9_F_SM9_EXTRACT_PRIVATE_KEY                    108
 # define SM9_F_SM9_HASH1                                  109
 # define SM9_F_SM9_HASH2                                  110
 # define SM9_F_SM9_SETUP                                  111
+# define SM9_F_SM9_SETUP_TYPE1CURVE                       112
 # define SM9_F_SM9_SIGN                                   106
 # define SM9_F_SM9_VERIFY                                 107
 
@@ -183,8 +208,15 @@ int ERR_load_SM9_strings(void);
 # define SM9_R_BUFFER_TOO_SMALL                           101
 # define SM9_R_ENCRYPT_FAILURE                            102
 # define SM9_R_INVALID_CURVE                              103
+# define SM9_R_INVALID_DIGEST                             111
+# define SM9_R_INVALID_ID                                 108
+# define SM9_R_INVALID_MD                                 109
+# define SM9_R_INVALID_TYPE1CURVE                         105
 # define SM9_R_NOT_IMPLEMENTED                            100
+# define SM9_R_NOT_NAMED_CURVE                            106
+# define SM9_R_PARSE_PAIRING                              107
 # define SM9_R_UNKNOWN_CURVE                              104
+# define SM9_R_ZERO_ID                                    110
 
 # ifdef  __cplusplus
 }

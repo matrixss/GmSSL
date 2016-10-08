@@ -58,8 +58,9 @@ extern "C" {
 #endif
 
 /* hash input bytes to bignum in range [0, p - 1] */
-int BN_hash_to_range(const EVP_MD *md, const unsigned char *in, size_t inlen,
-	BIGNUM *bn, const BIGNUM *p);
+int BN_hash_to_range(const EVP_MD *md,
+	BIGNUM **bn, const void *in, size_t inlen,
+	const BIGNUM *p, BN_CTX *ctx);
 
 #ifdef __cplusplus
 }

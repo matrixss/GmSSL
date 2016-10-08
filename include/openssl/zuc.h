@@ -49,7 +49,6 @@
 
 #ifndef HEADER_ZUC_H
 #define HEADER_ZUC_H
-#ifndef NO_GMSSL
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -112,6 +111,5 @@ void eia3(const unsigned char *key, uint32_t count, uint32_t bearer, int directi
 
 #ifdef __cplusplus
 }
-#endif
 #endif
 #endif

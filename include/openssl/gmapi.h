@@ -45,7 +45,9 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  * ====================================================================
- *
+ */
+/*
+ * Common routines for all GM APIs (SAF, SDF, SKF)
  */
 
 #ifndef HEADER_GMAPI_H

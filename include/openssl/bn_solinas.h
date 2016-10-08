@@ -46,6 +46,9 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  * ====================================================================
  */
+/*
+ * Solinas Prime (prime number with low weight)
+ */
 
 #ifndef HEADER_BN_SOLINAS_H
 #define HEADER_BN_SOLINAS_H

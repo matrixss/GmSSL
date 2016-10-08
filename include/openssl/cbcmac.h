@@ -46,6 +46,15 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  * ====================================================================
  */
+/*
+ * CBC-MAC
+ * Attention: CBC-MAC is not secure when message length is not known
+ * and un-checked. CMAC is a secure replacement of CBC-MAC. So this
+ * module should be only used with legacy applications or protocols.
+ * The GM/T standards give IDs for block cipher based MACs. Some of
+ * the hardware vendors provide implementation of CBC-MAC with their
+ * devices.
+ */
 
 #ifndef HEADER_CBCMAC_H
 #define HEADER_CBCMAC_H

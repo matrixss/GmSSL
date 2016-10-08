@@ -46,6 +46,10 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  * ====================================================================
  */
+/*
+ * SDF API is a cryptographic API for PCI-E cards defined in standard
+ * GM/T 0018-2012: Interface Specifications of Cryptography Device Application
+ */
 
 #ifndef HEADER_SDF_H
 #define HEADER_SDF_H

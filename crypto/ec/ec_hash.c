@@ -1,6 +1,5 @@
-/* crypto/ec/ec_hash.c */
 /* ====================================================================
- * Copyright (c) 2014 - 2016 The GmSSL Project.  All rights reserved.
+ * Copyright (c) 2016 The GmSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -48,23 +47,26 @@
  * ====================================================================
  */
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
 #include <openssl/bn.h>
 #include <openssl/ec.h>
 #include <openssl/err.h>
 #include <openssl/objects.h>
 
-int EC_POINT_hash2point(const EC_GROUP *group, EC_POINT *point,
-	const EVP_MD *md, const char *s, size_t slen, BN_CTX *ctx)
+/* currently the EC_POINT_hash2point only support type1curve! */
+int EC_POINT_hash2point(const EC_GROUP *group, const EVP_MD *md,
+	const char *s, size_t slen, EC_POINT *point, BN_CTX *bn_ctx)
 {
 	int ret = 0;
 	BIGNUM *p = NULL;
 	BIGNUM *x = NULL;
 	BIGNUM *y = NULL;
 	BIGNUM *k = NULL;
-	BN_CTX *bn_ctx = NULL;
+	BIGNUM *q = NULL;
+
+	if (!group || !md || !point || !s || slen <= 0 || !bn_ctx) {
+		ECerr(EC_F_EC_POINT_HASH2POINT, ERR_R_PASSED_NULL_PARAMETER);
+		return 0;
+	}
 
 	if (EC_METHOD_get_field_type(EC_GROUP_method_of(group)) != NID_X9_62_prime_field) {
 		ECerr(EC_F_EC_POINT_HASH2POINT, EC_R_INVALID_CURVE);
@@ -75,8 +77,9 @@ int EC_POINT_hash2point(const EC_GROUP *group, EC_POINT *point,
 	x = BN_new();
 	y = BN_new();
 	k = BN_new();
-	bn_ctx = BN_CTX_new();
-	if (!p || !x || !y || !k || !bn_ctx) {
+	q = BN_new();
+
+	if (!p || !x || !y || !k || !q) {
 		ECerr(EC_F_EC_POINT_HASH2POINT, ERR_R_MALLOC_FAILURE);
 		goto end;
 	}
@@ -85,14 +88,21 @@ int EC_POINT_hash2point(const EC_GROUP *group, EC_POINT *point,
 		ECerr(EC_F_EC_POINT_HASH2POINT, ERR_R_EC_LIB);
 		goto end;
 	}
+
 	/* check group is type-1 curve */
 	if (!BN_is_zero(x) || !BN_is_one(y) || BN_mod_word(p, 12) != 11) {
 		ECerr(EC_F_EC_POINT_HASH2POINT, EC_R_INVALID_CURVE);
 		goto end;
 	}
 
-	/* y = HashToRange(s, p, md) */
-	if (!BN_hash2bn(&y, s, slen, md, p)) {
+	/* get order */
+	if (!EC_GROUP_get_order(group, q, bn_ctx)) {
+		ECerr(EC_F_EC_POINT_HASH2POINT, ERR_R_EC_LIB);
+		goto end;
+	}
+
+	/* y = HashToRange(s) in [0, p - 1] */
+	if (!BN_hash_to_range(md, &y, s, slen, p, bn_ctx)) {
 		ECerr(EC_F_EC_POINT_HASH2POINT, ERR_R_BN_LIB);
 		goto end;
 	}
@@ -164,7 +174,7 @@ end:
 	BN_free(x);
 	BN_free(y);
 	BN_free(k);
-	BN_CTX_free(bn_ctx);
+	BN_free(q);
 	return ret;
 }
 

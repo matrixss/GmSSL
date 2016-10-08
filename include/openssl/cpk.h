@@ -45,7 +45,10 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  * ====================================================================
- *
+ */
+/*
+ * CPK (Combined Public Key) is an identity-based cryptographic scheme
+ * with bound security.
  */
 
 #ifndef HEADER_CPK_H

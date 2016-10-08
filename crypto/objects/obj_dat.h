@@ -10,7 +10,7 @@
  */
 
 /* Serialized OID's */
-static const unsigned char so[7361] = {
+static const unsigned char so[7401] = {
     0x2A,0x86,0x48,0x86,0xF7,0x0D,                 /* [    0] OBJ_rsadsi */
     0x2A,0x86,0x48,0x86,0xF7,0x0D,0x01,            /* [    6] OBJ_pkcs */
     0x2A,0x86,0x48,0x86,0xF7,0x0D,0x02,0x02,       /* [   13] OBJ_md2 */
@@ -1040,9 +1040,13 @@ static const unsigned char so[7361] = {
     0x2A,0x86,0x48,0x01,0x86,0xFD,0x1E,0x01,0x01,0x04,  /* [ 7339] OBJ_type4curve */
     0x2B,0x81,0x04,0x01,0x13,                      /* [ 7349] OBJ_tdes_cbc_in_ecies */
     0x2B,0x81,0x04,0x01,0x18,0x02,                 /* [ 7354] OBJ_cmac_aes256_ecies */
+    0x2A,0x86,0x48,0x01,0x86,0xFD,0x1E,0x01,0x03,0x01,  /* [ 7360] OBJ_tate_pairing */
+    0x2A,0x86,0x48,0x01,0x86,0xFD,0x1E,0x01,0x03,0x02,  /* [ 7370] OBJ_weil_pairing */
+    0x2A,0x86,0x48,0x01,0x86,0xFD,0x1E,0x01,0x03,0x03,  /* [ 7380] OBJ_ate_pairing */
+    0x2A,0x86,0x48,0x01,0x86,0xFD,0x1E,0x01,0x03,0x04,  /* [ 7390] OBJ_r_ate_pairing */
 };
 
-#define NUM_NID 1141
+#define NUM_NID 1145
 static const ASN1_OBJECT nid_objs[NUM_NID] = {
     {"UNDEF", "undefined", NID_undef},
     {"rsadsi", "RSA Data Security, Inc.", NID_rsadsi, 6, &so[0]},
@@ -2185,9 +2189,13 @@ static const ASN1_OBJECT nid_objs[NUM_NID] = {
     {"type4curve", "type4curve", NID_type4curve, 10, &so[7339]},
     {"tdes-cbc-in-ecies", "tdes-cbc-in-ecies", NID_tdes_cbc_in_ecies, 5, &so[7349]},
     {"cmac-aes256-ecies", "cmac-aes256-ecies", NID_cmac_aes256_ecies, 6, &so[7354]},
+    {"tate-pairing", "tate-pairing", NID_tate_pairing, 10, &so[7360]},
+    {"weil-pairing", "weil-pairing", NID_weil_pairing, 10, &so[7370]},
+    {"ate-pairing", "ate-pairing", NID_ate_pairing, 10, &so[7380]},
+    {"r-ate-pairing", "r-ate-pairing", NID_r_ate_pairing, 10, &so[7390]},
 };
 
-#define NUM_SN 1132
+#define NUM_SN 1136
 static const unsigned int sn_objs[NUM_SN] = {
      364,    /* "AD_DVCS" */
      419,    /* "AES-128-CBC" */
@@ -2485,6 +2493,7 @@ static const unsigned int sn_objs[NUM_SN] = {
      370,    /* "archiveCutoff" */
      484,    /* "associatedDomain" */
      485,    /* "associatedName" */
+    1143,    /* "ate-pairing" */
      501,    /* "audio" */
      177,    /* "authorityInfoAccess" */
       90,    /* "authorityKeyIdentifier" */
@@ -3057,6 +3066,7 @@ static const unsigned int sn_objs[NUM_SN] = {
      435,    /* "pss" */
      286,    /* "qcStatements" */
      457,    /* "qualityLabelledData" */
+    1144,    /* "r-ate-pairing" */
      450,    /* "rFC822localPart" */
      870,    /* "registeredAddress" */
      400,    /* "role" */
@@ -3275,6 +3285,7 @@ static const unsigned int sn_objs[NUM_SN] = {
      890,    /* "supportedAlgorithms" */
      874,    /* "supportedApplicationContext" */
      402,    /* "targetInformation" */
+    1141,    /* "tate-pairing" */
     1139,    /* "tdes-cbc-in-ecies" */
      864,    /* "telephoneNumber" */
      866,    /* "teletexTerminalIdentifier" */
@@ -3314,6 +3325,7 @@ static const unsigned int sn_objs[NUM_SN] = {
      741,    /* "wap-wsg-idm-ecid-wtls8" */
      742,    /* "wap-wsg-idm-ecid-wtls9" */
     1131,    /* "wapip192v1" */
+    1142,    /* "weil-pairing" */
      804,    /* "whirlpool" */
      868,    /* "x121Address" */
      503,    /* "x500UniqueIdentifier" */
@@ -3323,7 +3335,7 @@ static const unsigned int sn_objs[NUM_SN] = {
     1069,    /* "xor-in-ecies" */
 };
 
-#define NUM_LN 1132
+#define NUM_LN 1136
 static const unsigned int ln_objs[NUM_LN] = {
      363,    /* "AD Time Stamping" */
      405,    /* "ANSI X9.62" */
@@ -3551,6 +3563,7 @@ static const unsigned int ln_objs[NUM_LN] = {
      376,    /* "algorithm" */
      484,    /* "associatedDomain" */
      485,    /* "associatedName" */
+    1143,    /* "ate-pairing" */
      501,    /* "audio" */
     1049,    /* "auth-dss" */
     1047,    /* "auth-ecdsa" */
@@ -4147,6 +4160,7 @@ static const unsigned int ln_objs[NUM_LN] = {
      435,    /* "pss" */
      286,    /* "qcStatements" */
      457,    /* "qualityLabelledData" */
+    1144,    /* "r-ate-pairing" */
      450,    /* "rFC822localPart" */
       98,    /* "rc2-40-cbc" */
      166,    /* "rc2-64-cbc" */
@@ -4409,6 +4423,7 @@ static const unsigned int ln_objs[NUM_LN] = {
      890,    /* "supportedAlgorithms" */
      874,    /* "supportedApplicationContext" */
      100,    /* "surname" */
+    1141,    /* "tate-pairing" */
     1139,    /* "tdes-cbc-in-ecies" */
      864,    /* "telephoneNumber" */
      866,    /* "teletexTerminalIdentifier" */
@@ -4448,6 +4463,7 @@ static const unsigned int ln_objs[NUM_LN] = {
      741,    /* "wap-wsg-idm-ecid-wtls8" */
      742,    /* "wap-wsg-idm-ecid-wtls9" */
     1131,    /* "wapip192v1" */
+    1142,    /* "weil-pairing" */
      804,    /* "whirlpool" */
      868,    /* "x121Address" */
      503,    /* "x500UniqueIdentifier" */
@@ -4459,7 +4475,7 @@ static const unsigned int ln_objs[NUM_LN] = {
     1132,    /* "zuc" */
 };
 
-#define NUM_OBJ 1035
+#define NUM_OBJ 1039
 static const unsigned int obj_objs[NUM_OBJ] = {
        0,    /* OBJ_undef                        0 */
      181,    /* OBJ_iso                          1 */
@@ -5382,6 +5398,10 @@ static const unsigned int obj_objs[NUM_OBJ] = {
     1138,    /* OBJ_type4curve                   1 2 840 1 114334 1 1 4 */
     1133,    /* OBJ_bfibe                        1 2 840 1 114334 1 2 1 */
     1134,    /* OBJ_bb1                          1 2 840 1 114334 1 2 2 */
+    1141,    /* OBJ_tate_pairing                 1 2 840 1 114334 1 3 1 */
+    1142,    /* OBJ_weil_pairing                 1 2 840 1 114334 1 3 2 */
+    1143,    /* OBJ_ate_pairing                  1 2 840 1 114334 1 3 3 */
+    1144,    /* OBJ_r_ate_pairing                1 2 840 1 114334 1 3 4 */
      189,    /* OBJ_id_smime_mod                 1 2 840 113549 1 9 16 0 */
      190,    /* OBJ_id_smime_ct                  1 2 840 113549 1 9 16 1 */
      191,    /* OBJ_id_smime_aa                  1 2 840 113549 1 9 16 2 */

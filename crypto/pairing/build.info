@@ -1,2 +1,2 @@
 LIBS=../../libcrypto
-SOURCE[../../libcrypto]=pair_gfp2.c pair_lib.c pair_err.c pair_bfibe.c pair_bb1ibe.c
+SOURCE[../../libcrypto]=pair_err.c pair_lib.c pair_type1.c pair_bfibe.c pair_bb1ibe.c

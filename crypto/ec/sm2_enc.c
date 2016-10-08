@@ -256,14 +256,18 @@ SM2_CIPHERTEXT_VALUE *SM2_CIPHERTEXT_VALUE_decode(
 		goto end;
 	}
 
+#if 0
+	//FIXME
 	ptlen = fixlen - SM2_ENC_PARAMS_mactag_size(params);
+#endif
 	if (!EC_POINT_oct2point(ec_group, ret->ephem_point, buf, ptlen, bn_ctx)) {
 		ECerr(EC_F_SM2_CIPHERTEXT_VALUE_DECODE, EC_R_OCT2POINT_FAILED);
 		goto end;
 	}
 
 	memcpy(ret->ciphertext, buf + ptlen, ret->ciphertext_size);
-	ret->mactag_size = SM2_ENC_PARAMS_mactag_size(params);
+	//FIXME
+	//ret->mactag_size = SM2_ENC_PARAMS_mactag_size(params);
 	if (ret->mactag_size > 0) {
 		memcpy(ret->mactag, buf + buflen - ret->mactag_size, ret->mactag_size);
 	}

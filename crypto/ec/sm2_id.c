@@ -45,7 +45,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  * ====================================================================
- *
  */
 
 
@@ -64,20 +63,14 @@
 #define EC_MAX_NBYTES  ((OPENSSL_ECC_MAX_FIELD_BITS + 7)/8)
 
 
-
-
-
-
 int SM2_get_public_key_data(EC_KEY *ec_key, unsigned char *out, size_t *outlen)
 {
 	int ret = 0;
-	const EC_GROUP *ec_group;
-	const EC_POINT *point;
-	BN_CTX *bn_ctx = NULL;
+	const EC_GROUP *group;
 	BIGNUM *p = NULL;
 	BIGNUM *x = NULL;
 	BIGNUM *y = NULL;
-	unsigned char oct[EC_MAX_NBYTES * 2 + 1];
+	BN_CTX *bn_ctx = NULL;
 	int nbytes;
 	size_t len;
 
@@ -85,9 +78,13 @@ int SM2_get_public_key_data(EC_KEY *ec_key, unsigned char *out, size_t *outlen)
 		ECerr(EC_F_SM2_GET_PUBLIC_KEY_DATA, ERR_R_PASSED_NULL_PARAMETER);
 		return 0;
 	}
+	if (!(group = EC_KEY_get0_group(ec_key))) {
+		ECerr(EC_F_SM2_GET_PUBLIC_KEY_DATA, ERR_R_PASSED_NULL_PARAMETER);
+		return 0;
+	}
 
-	ec_group = EC_KEY_get0_group(ec_key);
-	nbytes = (EC_GROUP_get_degree(ec_group) + 7)/8;
+	/* degree is the bit length of field element, not the order of subgroup */
+	nbytes = (EC_GROUP_get_degree(group) + 7)/8;
 	len = nbytes * 6;
 
 	if (!out) {
@@ -101,66 +98,97 @@ int SM2_get_public_key_data(EC_KEY *ec_key, unsigned char *out, size_t *outlen)
 
 	memset(out, 0, len);
 
-	bn_ctx = BN_CTX_new();
 	p = BN_new();
 	x = BN_new();
 	y = BN_new();
+	bn_ctx = BN_CTX_new();
 	if (!bn_ctx || !p || !x || !y) {
 		ECerr(EC_F_SM2_GET_PUBLIC_KEY_DATA,  ERR_R_MALLOC_FAILURE);
 		goto end;
 	}
 
 	/* get curve coefficients */
-	if (EC_METHOD_get_field_type(EC_GROUP_method_of(ec_group)) == NID_X9_62_prime_field) {
-		if (!EC_GROUP_get_curve_GFp(ec_group, p, x, y, bn_ctx)) {
+	if (EC_METHOD_get_field_type(EC_GROUP_method_of(group)) == NID_X9_62_prime_field) {
+		if (!EC_GROUP_get_curve_GFp(group, p, x, y, bn_ctx)) {
 			ECerr(EC_F_SM2_GET_PUBLIC_KEY_DATA, ERR_R_EC_LIB);
 			goto end;
 		}
 	} else {
-		if (!EC_GROUP_get_curve_GF2m(ec_group, p, x, y, bn_ctx)) {
+		if (!EC_GROUP_get_curve_GF2m(group, p, x, y, bn_ctx)) {
 			ECerr(EC_F_SM2_GET_PUBLIC_KEY_DATA, ERR_R_EC_LIB);
 			goto end;
 		}
 	}
 
-	out += nbytes;
-	if (!BN_bn2bin(x, out - BN_num_bytes(x))) {
+	if (!BN_bn2bin(x, out + nbytes - BN_num_bytes(x))) {
 		ECerr(EC_F_SM2_GET_PUBLIC_KEY_DATA, ERR_R_BN_LIB);
 		goto end;
 	}
 	out += nbytes;
-	if (!BN_bn2bin(y, out - BN_num_bytes(y))) {
+
+	if (!BN_bn2bin(y, out + nbytes - BN_num_bytes(y))) {
 		ECerr(EC_F_SM2_GET_PUBLIC_KEY_DATA, ERR_R_BN_LIB);
 		goto end;
 	}
+	out += nbytes;
 
 	/* get curve generator coordinates */
-	if (!(point = EC_GROUP_get0_generator(ec_group))) {
-		ECerr(EC_F_SM2_GET_PUBLIC_KEY_DATA, ERR_R_EC_LIB);
+	if (EC_METHOD_get_field_type(EC_GROUP_method_of(group)) == NID_X9_62_prime_field) {
+		if (!EC_POINT_get_affine_coordinates_GFp(group,
+			EC_GROUP_get0_generator(group), x, y, bn_ctx)) {
+			ECerr(EC_F_SM2_GET_PUBLIC_KEY_DATA, ERR_R_EC_LIB);
+			goto end;
+		}
+	} else {
+		if (!EC_POINT_get_affine_coordinates_GF2m(group,
+			EC_GROUP_get0_generator(group), x, y, bn_ctx)) {
+			ECerr(EC_F_SM2_GET_PUBLIC_KEY_DATA, ERR_R_EC_LIB);
+			goto end;
+		}
+	}
+
+	if (!BN_bn2bin(x, out + nbytes - BN_num_bytes(x))) {
+		ECerr(EC_F_SM2_GET_PUBLIC_KEY_DATA, ERR_R_BN_LIB);
 		goto end;
 	}
-	if (!(len = EC_POINT_point2oct(ec_group, point,
-		POINT_CONVERSION_UNCOMPRESSED, oct, sizeof(oct), bn_ctx))) {
-		ECerr(EC_F_SM2_GET_PUBLIC_KEY_DATA, ERR_R_EC_LIB);
+	out += nbytes;
+
+	if (!BN_bn2bin(y, out + nbytes - BN_num_bytes(y))) {
+		ECerr(EC_F_SM2_GET_PUBLIC_KEY_DATA, ERR_R_BN_LIB);
 		goto end;
 	}
-	memcpy(out, oct + 1, len - 1);
-	out += len - 1;
+	out += nbytes;
+
 
 	/* get pub_key coorindates */
-	if (!(point = EC_KEY_get0_public_key(ec_key))) {
-		ECerr(EC_F_SM2_GET_PUBLIC_KEY_DATA, ERR_R_EC_LIB);
-		goto end;
+	if (EC_METHOD_get_field_type(EC_GROUP_method_of(group)) == NID_X9_62_prime_field) {
+		if (!EC_POINT_get_affine_coordinates_GFp(group,
+			EC_KEY_get0_public_key(ec_key), x, y, bn_ctx)) {
+			ECerr(EC_F_SM2_GET_PUBLIC_KEY_DATA, ERR_R_EC_LIB);
+			goto end;
+		}
+	} else {
+		if (!EC_POINT_get_affine_coordinates_GF2m(group,
+			EC_KEY_get0_public_key(ec_key), x, y, bn_ctx)) {
+			ECerr(EC_F_SM2_GET_PUBLIC_KEY_DATA, ERR_R_EC_LIB);
+			goto end;
+		}
 	}
-	if (!(len = EC_POINT_point2oct(ec_group, point,
-		POINT_CONVERSION_UNCOMPRESSED, oct, sizeof(oct), bn_ctx))) {
-		ECerr(EC_F_SM2_GET_PUBLIC_KEY_DATA, ERR_R_EC_LIB);
-		goto end;
-	}
-	memcpy(out, oct + 1, len - 1);
-	out += len - 1;
 
+	if (!BN_bn2bin(x, out + nbytes - BN_num_bytes(x))) {
+		ECerr(EC_F_SM2_GET_PUBLIC_KEY_DATA, ERR_R_BN_LIB);
+		goto end;
+	}
+	out += nbytes;
+
+	if (!BN_bn2bin(y, out + nbytes - BN_num_bytes(y))) {
+		ECerr(EC_F_SM2_GET_PUBLIC_KEY_DATA, ERR_R_BN_LIB);
+		goto end;
+	}
+
+	*outlen = len;
 	ret = 1;
+
 end:
 	BN_free(p);
 	BN_free(x);
@@ -169,39 +197,66 @@ end:
 	return ret;
 }
 
-int SM2_compute_id_digest(unsigned char *dgst, const EVP_MD *md,
-	const char *id, EC_KEY *ec_key)
+int SM2_compute_id_digest(const EVP_MD *md, const char *id, size_t idlen,
+	unsigned char *out, unsigned int *outlen, EC_KEY *ec_key)
 {
 	int ret = 0;
 	EVP_MD_CTX *md_ctx = NULL;
 	unsigned char idbits[2];
-	unsigned char pkdata[(EC_MAX_NBYTES + 1) * 6];
-	size_t pkdatalen;
-	unsigned int dgstlen;
+	unsigned char buf[SM2_MAX_PKEY_DATA_LENGTH];
+	unsigned int len;
+	size_t size;
 
+	if (!md || !id || idlen <= 0 || !outlen || !ec_key) {
+		ECerr(EC_F_SM2_COMPUTE_ID_DIGEST, ERR_R_PASSED_NULL_PARAMETER);
+		return 0;
+	}
+
+	/*
+	 * check compatibility with the GM/T 0003.2-2012 standard
+	 * digest length must be 256-bit/32-byte
+	 * id length should be less than SM2_MAX_ID_LENGTH
+	 */
 	if (EVP_MD_size(md) != SM2_ID_DIGEST_LENGTH) {
 		ECerr(EC_F_SM2_COMPUTE_ID_DIGEST, EC_R_INVALID_DIGEST_ALGOR);
-		goto end;
+		return 0;
 	}
-
-	if (strlen(id) > SM2_MAX_ID_LENGTH) {
+	if (strlen(id) != idlen) {
+		ECerr(EC_F_SM2_COMPUTE_ID_DIGEST, EC_R_INVALID_SM2_ID);
+		return 0;
+	}
+	if (idlen > SM2_MAX_ID_LENGTH || idlen <= 0) {
 		ECerr(EC_F_SM2_COMPUTE_ID_DIGEST, EC_R_INVALID_ID_LENGTH);
-		goto end;
+		return 0;
 	}
 
-	pkdatalen = sizeof(pkdata);
-	if (!SM2_get_public_key_data(ec_key, pkdata, &pkdatalen)) {
+	if (!out) {
+		*outlen = EVP_MD_size(md);
+		return 1;
+	}
+	if (*outlen < EVP_MD_size(md)) {
+		ECerr(EC_F_SM2_COMPUTE_ID_DIGEST, EC_R_BUFFER_TOO_SMALL);
+		return 0;
+	}
+
+	/* prepare */
+	if (!(md_ctx = EVP_MD_CTX_new())) {
+		ECerr(EC_F_SM2_COMPUTE_ID_DIGEST, ERR_R_MALLOC_FAILURE);
+		return 0;
+	}
+
+	/* get public key data from ec_key */
+	size = sizeof(buf);
+	if (!SM2_get_public_key_data(ec_key, buf, &size)) {
 		ECerr(EC_F_SM2_COMPUTE_ID_DIGEST, EC_R_GET_PUBLIC_KEY_DATA_FAILURE);
 		goto end;
 	}
 
-	idbits[0] = ((strlen(id) * 8) >> 8) % 256;
-	idbits[1] = (strlen(id) * 8) % 256;
+	/* 2-byte id length in bits */
+	idbits[0] = ((idlen * 8) >> 8) % 256;
+	idbits[1] = (idlen * 8) % 256;
 
-	if (!(md_ctx = EVP_MD_CTX_create())) {
-		ECerr(EC_F_SM2_COMPUTE_ID_DIGEST, ERR_R_EVP_LIB);
-		goto end;
-	}
+	/* compute digest of (idbits, id, pkeydata) */
 	if (!EVP_DigestInit_ex(md_ctx, md, NULL)) {
 		ECerr(EC_F_SM2_COMPUTE_ID_DIGEST, ERR_R_EVP_LIB);
 		goto end;
@@ -210,25 +265,81 @@ int SM2_compute_id_digest(unsigned char *dgst, const EVP_MD *md,
 		ECerr(EC_F_SM2_COMPUTE_ID_DIGEST, ERR_R_EVP_LIB);
 		goto end;
 	}
-	if (!EVP_DigestUpdate(md_ctx, id, strlen(id))) {
+	if (!EVP_DigestUpdate(md_ctx, id, idlen)) {
 		ECerr(EC_F_SM2_COMPUTE_ID_DIGEST, ERR_R_EVP_LIB);
 		goto end;
 	}
-	if (!EVP_DigestUpdate(md_ctx, pkdata, pkdatalen)) {
+	if (!EVP_DigestUpdate(md_ctx, buf, size)) {
 		ECerr(EC_F_SM2_COMPUTE_ID_DIGEST, ERR_R_EVP_LIB);
 		goto end;
 	}
-	dgstlen = SM2_ID_DIGEST_LENGTH;
-	if (!EVP_DigestFinal_ex(md_ctx, dgst, &dgstlen)) {
+	len = EVP_MD_size(md);
+	if (!EVP_DigestFinal_ex(md_ctx, out, &len)) {
 		ECerr(EC_F_SM2_COMPUTE_ID_DIGEST, ERR_R_EVP_LIB);
 		goto end;
 	}
 
+	*outlen = len;
 	ret = 1;
 
 end:
-	EVP_MD_CTX_destroy(md_ctx);
+	EVP_MD_CTX_free(md_ctx);
         return ret;
 }
 
+/*
+ * Generate GM/T 0003.2-2012 message digest for SM2 signature scheme.
+ * Return dgst = msg_md( id_md(id, ec_key) || msg )
+ */
+int SM2_compute_message_digest(const EVP_MD *id_md, const EVP_MD *msg_md,
+	const unsigned char *msg, size_t msglen, const char *id, size_t idlen,
+	unsigned char *out, unsigned char *outlen,
+	EC_KEY *ec_key)
+{
+	int ret = 0;
+	EVP_MD_CTX *md_ctx;
+	unsigned char buf[EVP_MAX_MD_SIZE];
+	unsigned int len;
+
+	if (!id_md || !msg_md || !msg || msglen <= 0 || !id || idlen <= 0 || !ec_key) {
+		ECerr(EC_F_SM2_COMPUTE_MESSAGE_DIGEST, ERR_R_PASSED_NULL_PARAMETER);
+		return 0;
+	}
+
+	if (!(md_ctx = EVP_MD_CTX_new())) {
+		ECerr(EC_F_SM2_COMPUTE_MESSAGE_DIGEST, ERR_R_MALLOC_FAILURE);
+		return 0;
+	}
+
+	len = sizeof(buf);
+	if (!SM2_compute_id_digest(id_md, id, idlen, buf, &len, ec_key)) {
+		ECerr(EC_F_SM2_COMPUTE_MESSAGE_DIGEST, ERR_R_EC_LIB);
+		goto end;
+	}
+
+	if (!EVP_DigestInit_ex(md_ctx, msg_md, NULL)) {
+		ECerr(EC_F_SM2_COMPUTE_MESSAGE_DIGEST, ERR_R_EVP_LIB);
+		goto end;
+	}
+	if (!EVP_DigestUpdate(md_ctx, buf, len)) {
+		ECerr(EC_F_SM2_COMPUTE_MESSAGE_DIGEST, ERR_R_EVP_LIB);
+		goto end;
+	}
+	if (!EVP_DigestUpdate(md_ctx, msg, msglen)) {
+		ECerr(EC_F_SM2_COMPUTE_MESSAGE_DIGEST, ERR_R_EVP_LIB);
+		goto end;
+	}
+	len = sizeof(buf);
+	if (!EVP_DigestFinal_ex(md_ctx, out, &len)) {
+		ECerr(EC_F_SM2_COMPUTE_MESSAGE_DIGEST, ERR_R_EVP_LIB);
+		goto end;
+	}
+
+	*outlen = len;
+	ret = 1;
+
+end:
+	EVP_MD_CTX_free(md_ctx);
+	return ret;
+}
 

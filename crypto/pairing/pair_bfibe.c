@@ -1,4 +1,3 @@
-/* crypto/pbc/pbc_bf.c */
 /* ====================================================================
  * Copyright (c) 2016 The GmSSL Project.  All rights reserved.
  *
@@ -54,9 +53,27 @@
 #include <openssl/ec.h>
 #include <openssl/asn1.h>
 #include <openssl/asn1t.h>
+#include <openssl/ec_type1.h>
+#include <openssl/ec_hash.h>
 #include <openssl/bfibe.h>
 #include <openssl/pairing.h>
+#include <openssl/rand.h>
+#include <openssl/bn.h>
+#include <openssl/bn_hash.h>
+#include <openssl/bn_gfp2.h>
+#include <openssl/kdf.h>
 
+/*
+ * the `curve` attribute of BFPublicParameters is the OID present the
+ * `type1curve` which is E: y^2 = x^3 + 1 over prime field. It is not an
+ * elliptic curve domain parameters composed of (p, a, b, G, n, h).
+ * For type-1 curve, a = 0, b = 1.
+ * q (i.e. the n in ec params) is the order of generator G, is a prime.
+ * When q is a solinas prime, the scalar mulitiplication computation can
+ * be reduced.
+ * zeta (i.e. h in ec params) = (p + 1)/q. In normall ecc, h is very small
+ * such as 1 or 4. But in pairing, the zeta (or h) is very large.
+ */
 ASN1_SEQUENCE(BFPublicParameters) = {
 	ASN1_SIMPLE(BFPublicParameters, version, LONG),
 	ASN1_SIMPLE(BFPublicParameters, curve, ASN1_OBJECT),
@@ -93,28 +110,40 @@ IMPLEMENT_ASN1_FUNCTIONS(BFCiphertextBlock)
 IMPLEMENT_ASN1_DUP_FUNCTION(BFCiphertextBlock)
 
 
-int BFIBE_setup(PAIRING *pairing, BFPublicParameters **pmpk, BFMasterSecret **pmsk)
+int BFIBE_setup(const EC_GROUP *group, const EVP_MD *md,
+	BFPublicParameters **pmpk, BFMasterSecret **pmsk)
 {
 	int ret = 0;
-	BFPublicParameters *pk = NULL;
-	BFMasterSecret *sk = NULL;
-	EC_POINT *point = NULL;
+	BFPublicParameters *mpk = NULL;
+	BFMasterSecret *msk = NULL;
 	BN_CTX *bn_ctx = NULL;
-	const EC_GROUP *group;
-	const EVP_MD *md;
+	EC_POINT *point = NULL;
+	BIGNUM *a;
+	BIGNUM *b;
 
-	if (!pairing || !pmpk || !pmsk) {
+	if (!group || !pmpk || !pmsk) {
 		PAIRINGerr(PAIRING_F_BFIBE_SETUP, ERR_R_PASSED_NULL_PARAMETER);
 		return 0;
 	}
 
+	if (!(bn_ctx = BN_CTX_new())) {
+		PAIRINGerr(PAIRING_F_BFIBE_SETUP, ERR_R_MALLOC_FAILURE);
+		goto end;
+	}
+
+	BN_CTX_start(bn_ctx);
+	a = BN_CTX_get(bn_ctx);
+	b = BN_CTX_get(bn_ctx);
+	if (!b) {
+		PAIRINGerr(PAIRING_F_BFIBE_SETUP, ERR_R_MALLOC_FAILURE);
+		goto end;
+	}
+
 	mpk = BFPublicParameters_new();
 	msk = BFMasterSecret_new();
-	group = PAIRING_get0_group(pairing);
 	point = EC_POINT_new(group);
-	bn_ctx = BN_CTX_new();
 
-	if (!mpk || !msk || !point || !bn_ctx) {
+	if (!mpk || !msk || !point) {
 		PAIRINGerr(PAIRING_F_BFIBE_SETUP, ERR_R_MALLOC_FAILURE);
 		goto end;
 	}
@@ -122,73 +151,75 @@ int BFIBE_setup(PAIRING *pairing, BFPublicParameters **pmpk, BFMasterSecret **pm
 	/*
 	 * set mpk->version
 	 * set mpk->curve
-	 * set mpk->p
-	 * set mpk->q
-	 * set mpk->pointP
-	 * set mpk->hashfcn
 	 */
 
 	mpk->version = BFIBE_VERSION;
 
 	OPENSSL_assert(mpk->curve);
 	ASN1_OBJECT_free(mpk->curve);
-	if (!(mpk->curve = OBJ_nid2obj(EC_GROUP_get_curve_name(group)))) {
+	if (!(mpk->curve = OBJ_nid2obj(NID_type1curve))) {
 		PAIRINGerr(PAIRING_F_BFIBE_SETUP, PAIRING_R_NOT_NAMED_CURVE);
 		goto end;
 	}
 
-	if (!BN_copy(mpk->p, PAIRING_get0_field(pairing))) {
-		PAIRINGerr(PAIRING_F_BFIBE_SETUP, PAIRING_R_PARSE_PAIRING);
+	/* mpk->p = group->p */
+	if (!EC_GROUP_get_curve_GFp(group, mpk->p, a, b, bn_ctx)) {
+		PAIRINGerr(PAIRING_F_BFIBE_SETUP, ERR_R_EC_LIB);
+		goto end;
+	}
+	if (!BN_is_zero(a) || !BN_is_one(b)) {
+		PAIRINGerr(PAIRING_F_BFIBE_SETUP, PAIRING_R_INVALID_TYPE1CURVE);
 		goto end;
 	}
 
-	if (!BN_copy(mpk->q, PAIRING_get0_order(pairing))) {
-		PAIRINGerr(PAIRING_F_BFIBE_SETUP, PAIRING_R_PARSE_PAIRING);
+	/* mpk->q = group->order */
+	if (!EC_GROUP_get_order(group, mpk->q, bn_ctx)) {
+		PAIRINGerr(PAIRING_F_BFIBE_SETUP, PAIRING_R_INVALID_TYPE1CURVE);
 		goto end;
 	}
 
-	if (!EC_POINT_get_affine_coordinates_GFp(group, PAIRING_get0_generator(pairing),
+	/* mpk->pointP = group->generator */
+	if (!EC_POINT_get_affine_coordinates_GFp(group, EC_GROUP_get0_generator(group),
 		mpk->pointP->x, mpk->pointP->y, bn_ctx)) {
-		PAIRINGerr(PAIRING_F_BFIBE_SETUP, PAIRING_R_PARSE_PAIRING);
+		PAIRINGerr(PAIRING_F_BFIBE_SETUP, ERR_R_EC_LIB);
 		goto end;
 	}
 
-	if (!(md = PAIRING_nbits_to_md(BN_num_bits(mpk->p) * 2 * 8))) {
-		PAIRINGerr(PAIRING_F_BFIBE_SETUP, PAIRING_R_PARSE_PAIRING);
-		goto end;
-	}
+	/* set mpk->hashfcn from F_p^2 element bits */
+	OPENSSL_assert(mpk->hashfcn);
 	ASN1_OBJECT_free(mpk->hashfcn);
 	if (!(mpk->hashfcn = OBJ_nid2obj(EVP_MD_type(md)))) {
 		PAIRINGerr(PAIRING_F_BFIBE_SETUP, PAIRING_R_PARSE_PAIRING);
 		goto end;
 	}
 
-	/* set msk->version
+	/*
+	 * set msk->version
 	 * random msk->masterSecret in [2, q - 1]
 	 */
 
 	msk->version = BFIBE_VERSION;
 
 	do {
-		if (!BN_rand_range(sk->privateKey, pk->q)) {
+		if (!BN_rand_range(msk->masterSecret, mpk->q)) {
 			PAIRINGerr(PAIRING_F_BFIBE_SETUP, ERR_R_BN_LIB);
 			goto end;
 		}
-	} while (BN_is_zero(sk->privateKey) || BN_is_one(sk->privateKey));
+	} while (BN_is_zero(msk->masterSecret) || BN_is_one(msk->masterSecret));
 
 	/* mpk->pointPpub = msk->masterSecret * mpk->pointP */
 
-	if (!EC_POINT_mul(group, point, sk->privateKey, NULL, NULL, bn_ctx)) {
+	if (!EC_POINT_mul(group, point, msk->masterSecret, NULL, NULL, bn_ctx)) {
 		PAIRINGerr(PAIRING_F_BFIBE_SETUP, ERR_R_EC_LIB);
 		goto end;
 	}
-
 	if (!EC_POINT_get_affine_coordinates_GFp(group, point,
 		mpk->pointPpub->x, mpk->pointPpub->y, bn_ctx)) {
 		PAIRINGerr(PAIRING_F_BFIBE_SETUP, ERR_R_EC_LIB);
 		goto end;
 	}
 
+	/* set return value */
 	*pmpk = mpk;
 	*pmsk = msk;
 	ret = 1;
@@ -200,10 +231,12 @@ end:
 		*pmpk = NULL;
 		*pmsk = NULL;
 	}
-	EC_POINT_free(point);
+	if (bn_ctx) {
+		BN_CTX_end(bn_ctx);
+	}
 	BN_CTX_free(bn_ctx);
-	PAIRINGerr(PAIRING_F_BFIBE_SETUP, ERR_R_PAIRING_LIB);
-	return 0;
+	EC_POINT_free(point);
+	return ret;
 }
 
 BFPrivateKeyBlock *BFIBE_extract_private_key(BFPublicParameters *mpk,
@@ -211,27 +244,29 @@ BFPrivateKeyBlock *BFIBE_extract_private_key(BFPublicParameters *mpk,
 {
 	int e = 1;
 	BFPrivateKeyBlock *ret = NULL;
-	PAIRING *pairing = NULL;
+	EC_GROUP *group = NULL;
 	EC_POINT *point = NULL;
-	EC_POINT *PPub = NULL;
 	BN_CTX *bn_ctx = NULL;
-	const EC_GROUP *group;
 	const EVP_MD *md;
 
 	if (!mpk || !msk || !id || idlen <= 0) {
-		PAIRINGerr(PAIRING_F_BFIBE_EXTRACT_PRIVATE_KEY, ERR_R_PASSED_NULL_PARAMTERS);
+		PAIRINGerr(PAIRING_F_BFIBE_EXTRACT_PRIVATE_KEY, ERR_R_PASSED_NULL_PARAMETER);
 		return NULL;
 	}
 
-	if (!(ret = BFPrivateKeyBlock_new())) {
-		PAIRINGerr(PAIRING_F_BFIBE_EXTRACT_PRIVATE_KEY, ERR_R_MALLOC_FAILURE);
-		return NULL;
+	if (!(bn_ctx = BN_CTX_new())) {
+		PAIRINGerr(PAIRING_F_BFIBE_EXTRACT_PRIVATE_KEY,
+			ERR_R_MALLOC_FAILURE);
+		goto end;
 	}
 
-	ret->version = BFIBE_VERSION;
-
-	if (!(pairing = PAIRING_new_type1(mpk->p, mpk->q, mpk->pointP))) {
-		PAIRINGerr(PAIRING_F_BFIBE_EXTRACT_PRIVATE_KEY, ERR_R_PAIRING_LIB);
+	/*
+	 * get EC_GROUP from mpk->{p, q, pointP}
+	 * get EVP_MD from mpk->hashfcn
+	 */
+	if (!(group = EC_GROUP_new_type1curve(mpk->p, mpk->pointP->x,
+		mpk->pointP->y, mpk->q, bn_ctx))) {
+		PAIRINGerr(PAIRING_F_BFIBE_EXTRACT_PRIVATE_KEY, PAIRING_R_PARSE_CURVE_FAILURE);
 		goto end;
 	}
 
@@ -241,20 +276,31 @@ BFPrivateKeyBlock *BFIBE_extract_private_key(BFPublicParameters *mpk,
 		goto end;
 	}
 
-	group = PAIRING_get0_group(pairing);
+	/* prepare tmp variables */
 	point = EC_POINT_new(group);
-	bn_ctx = BN_CTX_new();
-	if (!point || !bn_ctx) {
+	if (!point) {
 		PAIRINGerr(PAIRING_F_BFIBE_EXTRACT_PRIVATE_KEY, ERR_R_MALLOC_FAILURE);
 		goto end;
 	}
 
-	if (!PAIRING_hash_to_point(pairing, md, id, idlen, point, bn_ctx)) {
+	/*
+	 * set ret->version
+	 * set ret->privateKey = msk->masterSecret * HashToPoint(ID)
+	 */
+
+	if (!(ret = BFPrivateKeyBlock_new())) {
+		PAIRINGerr(PAIRING_F_BFIBE_EXTRACT_PRIVATE_KEY, ERR_R_MALLOC_FAILURE);
+		return NULL;
+	}
+
+	ret->version = BFIBE_VERSION;
+
+	if (!EC_POINT_hash2point(group, md, id, idlen, point, bn_ctx)) {
 		PAIRINGerr(PAIRING_F_BFIBE_EXTRACT_PRIVATE_KEY, ERR_R_PAIRING_LIB);
 		goto end;
 	}
 
-	if (!EC_POINT_mul(group, point, msk->masterSecret, NULL, NULL, bn_ctx)) {
+	if (!EC_POINT_mul(group, point, NULL, point, msk->masterSecret, bn_ctx)) {
 		PAIRINGerr(PAIRING_F_BFIBE_EXTRACT_PRIVATE_KEY, ERR_R_PAIRING_LIB);
 		goto end;
 	}
@@ -271,7 +317,7 @@ end:
 		BFPrivateKeyBlock_free(ret);
 		ret = NULL;
 	}
-	PAIRING_free(pairing);
+	EC_GROUP_free(group);
 	EC_POINT_free(point);
 	BN_CTX_free(bn_ctx);
 	return ret;
@@ -291,127 +337,143 @@ BFCiphertextBlock *BFIBE_do_encrypt(BFPublicParameters *mpk,
 {
 	int e = 1;
 	BFCiphertextBlock *ret = NULL;
-	PAIRING *pairing = NULL;
-	EC_POINT *point = NULL;
-	EC_POINT *Ppub = NULL;
-	BIGNUM *k = NULL;
-	BN_GFP2 *theta = NULL;
 	BN_CTX *bn_ctx = NULL;
-	const EC_GROUP *group;
+	EC_GROUP *group = NULL;
+	EC_POINT *Ppub = NULL;
+	EC_POINT *point = NULL;
+	BN_GFP2 *theta = NULL;
+	BIGNUM *k;
 	const EVP_MD *md;
+	KDF_FUNC hash_bytes;
 	unsigned char rho[EVP_MAX_MD_SIZE * 2];
 	unsigned char buf[EVP_MAX_MD_SIZE];
 	unsigned int len;
+	size_t size;
+	int i;
 
 	if (!mpk || !in || inlen <= 0 || !id || idlen <= 0) {
-		PAIRINGerr(PAIRING_F_BFIBE_DO_ENCRYPT, ERR_R_PASSED_NULL_PARAMETERS);
+		PAIRINGerr(PAIRING_F_BFIBE_DO_ENCRYPT, ERR_R_PASSED_NULL_PARAMETER);
 		return NULL;
 	}
 
-	/* prepare values */
+	/* BN_CTX */
+	if (!(bn_ctx = BN_CTX_new())) {
+		PAIRINGerr(PAIRING_F_BFIBE_DO_ENCRYPT, ERR_R_MALLOC_FAILURE);
+		goto end;
+	}
+	BN_CTX_start(bn_ctx);
 
-	if (!(pairing = PAIRING_new_type1(mpk->p, mpk->q, mpk->pointP))) {
-		PAIRINGerr(PAIRING_F_BFIBE_DO_ENCRYPT, ERR_R_PAIRING_LIB);
+	/* EC_GROUP */
+	if (!(group = EC_GROUP_new_type1curve(mpk->p, mpk->pointP->x,
+		mpk->pointP->y, mpk->q, bn_ctx))) {
+		PAIRINGerr(PAIRING_F_BFIBE_DO_ENCRYPT, PAIRING_R_PARSE_MPK_FAILURE);
 		goto end;
 	}
 
-	group = PAIRING_get0_group(pairing);
-	point = EC_POINT_new(group);
+	ret = BFCiphertextBlock_new();
 	Ppub = EC_POINT_new(group);
-	k = BN_new();
+	point = EC_POINT_new(group);
 	theta = BN_GFP2_new();
-	bn_ctx = BN_CTX_new();
-	if (!point || !Ppub || !k || !theta || !bn_ctx) {
+	k = BN_CTX_get(bn_ctx);
+
+	if (!ret || !point || !Ppub || !k || !theta) {
 		PAIRINGerr(PAIRING_F_BFIBE_DO_ENCRYPT, ERR_R_MALLOC_FAILURE);
 		goto end;
 	}
 
-	if (!EC_POINT_set_affine_coordinates_GFp(group, Ppub,
-		mpk->pointPpub->x, mpk->pointPpub->y, bn_ctx)) {
-		PAIRINGerr(PAIRING_F_BFIBE_DO_ENCRYPT, ERR_R_EC_LIB);
-		goto end;
-	}
 
+	/* get kdf from mpk->hashfcn */
 	if (!(md = EVP_get_digestbyobj(mpk->hashfcn))) {
 		PAIRINGerr(PAIRING_F_BFIBE_DO_ENCRYPT, PAIRING_R_INVALID_BFIBE_HASHFUNC);
 		goto end;
 	}
 
-	if (!(ret = BFCiphertextBlock_new())) {
-		PAIRINGerr(PAIRING_F_BFIBE_DO_ENCRYPT, ERR_R_MALLOC_FAILURE);
-		return NULL;
+	if (!(hash_bytes = KDF_get_ibcs(md))) {
+		PAIRINGerr(PAIRING_F_BFIBE_DO_ENCRYPT,
+			PAIRING_R_INVALID_BFIBE_HASHFUNC);
+		goto end;
 	}
 
-	/* start */
+	/* ret->version */
 	ret->version = BFIBE_VERSION;
 
-	/* r = Rand(), |r| = hashlen */
+	/* rho = Rand(hashlen) */
 	if (!RAND_bytes(rho, EVP_MD_size(md))) {
 		PAIRINGerr(PAIRING_F_BFIBE_DO_ENCRYPT, PAIRING_R_RAND_FAILURE);
 		goto end;
 	}
 
-	/* k = HashToRange(r||Hash(in), q) in [0, q - 1] */
-	len = sizeof(rho) - EVP_MD_size(md);
+	/* k = HashToRange(rho||Hash(in), q) in [0, q - 1] */
+	len = EVP_MD_size(md);
 	if (!EVP_Digest(in, inlen, rho + EVP_MD_size(md), &len, md, NULL)) {
 		PAIRINGerr(PAIRING_F_BFIBE_DO_ENCRYPT, ERR_R_EVP_LIB);
 		goto end;
 	}
-	if (!PAIRING_hash_to_range(md, rho, EVP_MD_size(md)*2, k, mpk->q)) {
+	if (!BN_hash_to_range(md, &k, rho, EVP_MD_size(md) * 2, mpk->q, bn_ctx)) {
 		PAIRINGerr(PAIRING_F_BFIBE_DO_ENCRYPT, ERR_R_PAIRING_LIB);
 		goto end;
 	}
 
-	/* U = [k]P in E/F_p */
+	/* ret->u = mpk->pointP * k in E/F_p, mpk->pointP is the generator */
 	if (!EC_POINT_mul(group, point, k, NULL, NULL, bn_ctx)) {
 		PAIRINGerr(PAIRING_F_BFIBE_DO_ENCRYPT, ERR_R_EC_LIB);
 		goto end;
 	}
-	if (!EC_POINT_get_affine_coordinates_GFp(group, point, ret->u->x, ret->u->y, bn_ctx)) {
+	if (!EC_POINT_get_affine_coordinates_GFp(group, point,
+		ret->u->x, ret->u->y, bn_ctx)) {
 		PAIRINGerr(PAIRING_F_BFIBE_DO_ENCRYPT, ERR_R_EC_LIB);
 		goto end;
 	}
 
-	/* Q = HashToPoint(ID) in E/F_p */
-	if (!PAIRING_hash_to_point(pairing, md, id, idlen, point, bn_ctx)) {
+	/* theta = e(mpk->pointPpub, HashToPoint(ID)) */
+	if (!EC_POINT_set_affine_coordinates_GFp(group, Ppub,
+		mpk->pointPpub->x, mpk->pointPpub->y, bn_ctx)) {
+		PAIRINGerr(PAIRING_F_BFIBE_DO_ENCRYPT, ERR_R_EC_LIB);
+		goto end;
+	}
+	if (!EC_POINT_hash2point(group, md, id, idlen, point, bn_ctx)) {
+		PAIRINGerr(PAIRING_F_BFIBE_DO_ENCRYPT, ERR_R_PAIRING_LIB);
+		goto end;
+	}
+	if (!PAIRING_type1curve_tate(group, theta, Ppub, point, bn_ctx)) {
 		PAIRINGerr(PAIRING_F_BFIBE_DO_ENCRYPT, ERR_R_PAIRING_LIB);
 		goto end;
 	}
 
-	/* theta = e(P_pub, Q_id)^k */
-	if (!PAIRING_compute_tate_GFp2(pairing, theta, Ppub, point, bn_ctx)) {
-		PAIRINGerr(PAIRING_F_BFIBE_DO_ENCRYPT, ERR_R_PAIRING_LIB);
-		goto end;
-	}
+	/* theta = theta^k */
 	if (!BN_GFP2_exp(theta, theta, k, mpk->p, bn_ctx)) {
 		PAIRINGerr(PAIRING_F_BFIBE_DO_ENCRYPT, ERR_R_PAIRING_LIB);
 		goto end;
 	}
 
-	/* v = Hash(theta) xor rho */
-	if (!BN_GFP2_canonical(theta, buf, &len, 0, mpk->p)) {
+	/* ret->v = Hash(theta) xor rho */
+	size = sizeof(buf);
+	if (!BN_GFP2_canonical(theta, buf, &size, 0, mpk->p, bn_ctx)) {
 		PAIRINGerr(PAIRING_F_BFIBE_DO_ENCRYPT, ERR_R_PAIRING_LIB);
 		goto end;
 	}
-	if (!EVP_Digest(buf, len, buf, &len, md, NULL)) {
+	len = sizeof(buf);
+	if (!EVP_Digest(buf, size, buf, &len, md, NULL)) {
 		PAIRINGerr(PAIRING_F_BFIBE_DO_ENCRYPT, ERR_R_EVP_LIB);
 		goto end;
 	}
 	for (i = 0; i < EVP_MD_size(md); i++) {
 		buf[i] ^= rho[i];
 	}
-	if (!ASN1_OCTET_STRING_set(ret->v, buf, len)) {
+	if (!ASN1_OCTET_STRING_set(ret->v, buf, EVP_MD_size(md))) {
 		PAIRINGerr(PAIRING_F_BFIBE_DO_ENCRYPT, ERR_R_PAIRING_LIB);
 		goto end;
 	}
 
-	/*  w = HashBytes(r) xor m */
+	/*  ret->w = HashBytes(rho) xor m */
 	if (!ASN1_OCTET_STRING_set(ret->w, NULL, inlen)) {
 		PAIRINGerr(PAIRING_F_BFIBE_DO_ENCRYPT, ERR_R_MALLOC_FAILURE);
 		goto end;
 	}
-	if (!PAIRING_hash_bytes(md, rho, EVP_MD_size(md), inlen, ret->w->data)) {
-		PAIRINGerr(PAIRING_F_BFIBE_DO_ENCRYPT, ERR_R_PAIRING_LIB);
+	size = inlen;
+	if (!hash_bytes(rho, EVP_MD_size(md), ret->w->data, &size)) {
+		PAIRINGerr(PAIRING_F_BFIBE_DO_ENCRYPT,
+			PAIRING_R_HASH_BYTES_FAILURE);
 		goto end;
 	}
 	for (i = 0; i < inlen; i++) {
@@ -419,17 +481,20 @@ BFCiphertextBlock *BFIBE_do_encrypt(BFPublicParameters *mpk,
 	}
 
 	e = 0;
+
 end:
 	if (e && ret) {
 		BFCiphertextBlock_free(ret);
 		ret = NULL;
 	}
-	PAIRING_free(pairing);
-	EC_POINT_free(point);
-	EC_POINT_free(Ppub);
-	BN_free(k);
-	BN_GFP2_free(theta);
+	if (bn_ctx) {
+		BN_CTX_end(bn_ctx);
+	}
 	BN_CTX_free(bn_ctx);
+	EC_GROUP_free(group);
+	EC_POINT_free(Ppub);
+	EC_POINT_free(point);
+	BN_GFP2_free(theta);
 	return ret;
 }
 
@@ -438,123 +503,150 @@ int BFIBE_do_decrypt(BFPublicParameters *mpk,
 	BFPrivateKeyBlock *sk)
 {
 	int ret = 0;
-	PAIRING *pairing = NULL;
-	EC_POINT *secret_point = NULL;
-	EC_POINT *point = NULL;
-	EC_POINT *Ppub = NULL;
-	BIGNUM *k = NULL;
-	BN_GFP2 *theta = NULL;
 	BN_CTX *bn_ctx = NULL;
-	const EC_GROUP *group;
+	EC_GROUP *group = NULL;
+	EC_POINT *point = NULL;
+	EC_POINT *point1 = NULL;
+	BN_GFP2 *theta = NULL;
+	BIGNUM *k;
 	const EVP_MD *md;
+	KDF_FUNC hash_bytes;
 	unsigned char rho[EVP_MAX_MD_SIZE * 2];
-	unsigned char buf[EVP_MAX_MD_SIZE];
-	unsigned int len;
+	unsigned int size;
+	int i;
 
-	/* prepare values */
+	if (!mpk || !in || !outlen || !sk) {
+		PAIRINGerr(PAIRING_F_BFIBE_DO_DECRYPT, ERR_R_PASSED_NULL_PARAMETER);
+		return 0;
+	}
 
-	if (!(pairing = PAIRING_new_type1(mpk->p, mpk->q, mpk->pointP))) {
-		PAIRINGerr(PAIRING_F_BFIBE_DO_DECRYPT, ERR_R_PAIRING_LIB);
+	if (!out) {
+		*outlen = in->w->length;
+		return 1;
+	}
+	if (*outlen < in->w->length) {
+		PAIRINGerr(PAIRING_F_BFIBE_DO_DECRYPT,
+			PAIRING_R_BUFFER_TOO_SMALL);
+		return 0;
+	}
+
+	/* BN_CTX */
+	if (!(bn_ctx = BN_CTX_new())) {
+		PAIRINGerr(PAIRING_F_BFIBE_DO_DECRYPT, ERR_R_MALLOC_FAILURE);
+		goto end;
+	}
+	BN_CTX_start(bn_ctx);
+
+	/* EC_GROUP */
+	if (!(group = EC_GROUP_new_type1curve(mpk->p, mpk->pointP->x,
+		mpk->pointP->y, mpk->q, bn_ctx))) {
+		PAIRINGerr(PAIRING_F_BFIBE_DO_DECRYPT,
+			PAIRING_R_INVALID_TYPE1CURVE);
 		goto end;
 	}
 
-	group = PAIRING_get0_group(pairing);
-	secret_point = EC_POINT_new(group);
 	point = EC_POINT_new(group);
-	Ppub = EC_POINT_new(group);
-	k = BN_new();
+	point1 = EC_POINT_new(group);
 	theta = BN_GFP2_new();
-	bn_ctx = BN_CTX_new();
-	if (!secret_point || !point || !Ppub || !k || !theta || !bn_ctx) {
+	k = BN_CTX_get(bn_ctx);
+
+	if (!point || !point1 || !theta || !k) {
 		PAIRINGerr(PAIRING_F_BFIBE_DO_DECRYPT, ERR_R_MALLOC_FAILURE);
 		goto end;
 	}
 
-	if (!EC_POINT_set_affine_coordinates_GFp(group, Ppub,
-		mpk->pointPpub->x, mpk->pointPpub->y, bn_ctx)) {
-		PAIRINGerr(PAIRING_F_BFIBE_DO_DECRYPT, ERR_R_EC_LIB);
-		goto end;
-	}
-
-	if (!(md = EVP_get_digestbyobj(mpk->hashfcn))) {
-		PAIRINGerr(PAIRING_F_BFIBE_DO_DECRYPT, PAIRING_R_INVALID_BFIBE_HASHFUNC);
-		goto end;
-	}
-
-	/* get ciphertext U */
+	/* theta = e(ciphertext->u, sk->privateKey) */
 	if (!EC_POINT_set_affine_coordinates_GFp(group, point,
 		in->u->x, in->u->y, bn_ctx)) {
 		PAIRINGerr(PAIRING_F_BFIBE_DO_DECRYPT, ERR_R_EC_LIB);
 		goto end;
 	}
-
-	/* get private key S_id in E/F_p */
-	if (!EC_POINT_set_affine_coordinates_GFp(group, secret_point,
+	if (!EC_POINT_set_affine_coordinates_GFp(group, point1,
 		sk->privateKey->x, sk->privateKey->y, bn_ctx)) {
 		PAIRINGerr(PAIRING_F_BFIBE_DO_DECRYPT, ERR_R_EC_LIB);
 		goto end;
 	}
-
-	/* theta = e(U, S_id) */
-	if (!PAIRING_compute_tate_GFp2(pairing, theta, point, secret_point, bn_ctx)) {
+	if (!PAIRING_type1curve_tate(group, theta, point, point1, bn_ctx)) {
 		PAIRINGerr(PAIRING_F_BFIBE_DO_DECRYPT, ERR_R_PAIRING_LIB);
 		goto end;
 	}
 
-	/* rho = Hash(theta) xor V */
-	if (!BN_GFP2_canonical(theta, buf, &len, 0, mpk->p)) {
+	/* md = mpk->hashfcn */
+	if (!(md = EVP_get_digestbyobj(mpk->hashfcn))) {
+		PAIRINGerr(PAIRING_F_BFIBE_DO_DECRYPT, PAIRING_R_INVALID_BFIBE_HASHFUNC);
+		goto end;
+	}
+
+	/* rho = Hash(Canoncial(theta)) xor ciphertext->v */
+	size = sizeof(rho);
+	if (!BN_GFP2_canonical(theta, rho, &size, 0, mpk->p, bn_ctx)) {
 		PAIRINGerr(PAIRING_F_BFIBE_DO_DECRYPT, ERR_R_EC_LIB);
 		goto end;
 	}
-	if (!EVP_Digest(buf, len, buf, &len, md, NULL)) {
+	if (!EVP_Digest(rho, size, rho, &size, md, NULL)) {
 		PAIRINGerr(PAIRING_F_BFIBE_DO_DECRYPT, ERR_R_EVP_LIB);
 		goto end;
 	}
 	for (i = 0; i < EVP_MD_size(md); i++) {
-		rho[i] = buf[i] ^ in->v->data[i];
+		rho[i] ^= in->v->data[i];
 	}
 
-	/* m = HashBytes(|W|, rho, hashfcn) xor W */
-	if (!PAIRING_hash_bytes(md, rho, EVP_MD_size(md), in->w->length, out)) {
+	/* function hash_bytes() = kdf(md) */
+	if (!(hash_bytes = KDF_get_ibcs(md))) {
+		PAIRINGerr(PAIRING_F_BFIBE_DO_DECRYPT,
+			PAIRING_R_INVALID_BFIBE_HASHFUNC);
+		goto end;
+	}
+
+	/* out = HashBytes(rho) xor ciphertext->w */
+	size = in->w->length;
+	if (!hash_bytes(rho, EVP_MD_size(md), out, &size)) {
+		PAIRINGerr(PAIRING_F_BFIBE_DO_DECRYPT,
+			PAIRING_R_KDF_FAILURE);
 		goto end;
 	}
 	for (i = 0; i < in->w->length; i++) {
 		out[i] ^= in->w->data[i];
 	}
 
-	/* t = hashfcn(m) */
-	if (!EVP_Digest(out, in->w->length, rho + EVP_MD_size(md), &len, md, NULL)) {
+	/* k = HashToRange(rho || Hash(out)) in [0, mpk->q) */
+	size = EVP_MD_size(md);
+	if (!EVP_Digest(out, in->w->length, rho + EVP_MD_size(md), &size, md, NULL)) {
+		PAIRINGerr(PAIRING_F_BFIBE_DO_DECRYPT, ERR_R_EVP_LIB);
+		goto end;
+	}
+	if (!BN_hash_to_range(md, &k, rho, EVP_MD_size(md) * 2, mpk->q, bn_ctx)) {
+		PAIRINGerr(PAIRING_F_BFIBE_DO_DECRYPT, ERR_R_BN_LIB);
 		goto end;
 	}
 
-	/* l = HashToRange(rho || t, q, hashfcn */
-
-	if (!PAIRING_hash_to_range()) {
-	}
-
-	/* Verify that U = [l]P: */
-
+	/* Verify that in->u == mpk->pointP * k */
 	if (!EC_POINT_mul(group, point, k, NULL, NULL, bn_ctx)) {
+		PAIRINGerr(PAIRING_F_BFIBE_DO_DECRYPT, ERR_R_EC_LIB);
+		goto end;
+	}
+	if (1 != EC_POINT_cmp_fppoint(group, point, in->u, bn_ctx)) {
+		PAIRINGerr(PAIRING_F_BFIBE_DO_DECRYPT, PAIRING_R_BFIBE_CIPHERTEXT_FAILURE);
 		goto end;
 	}
 
-	if (!EC_POINT_is_equal_FpPoint(group, point, in->U, bn_ctx)) {
-		goto end;
-	}
-
+	*outlen = in->w->length;
 	ret = 1;
 
 end:
-	PAIRING_free(pairing);
-	EC_POINT_free(point);
-	BN_free(k);
-	BN_GFP2_free(theta);
+	if (bn_ctx) {
+		BN_CTX_end(bn_ctx);
+	}
 	BN_CTX_free(bn_ctx);
-	return 0;
+	EC_GROUP_free(group);
+	EC_POINT_free(point);
+	EC_POINT_free(point1);
+	BN_GFP2_free(theta);
+	return ret;
 }
 
-/* FIXME: accurate result can be calculated from mpk and inlen */
-static int BFPublicParameters_size(BFPublicParameters *mpk,
+/* estimation of the max length of DER encoded ciphertext */
+static int BFCiphertextBlock_size(BFPublicParameters *mpk,
 	size_t inlen, size_t *outlen)
 {
 	size_t len = 0;
@@ -581,7 +673,7 @@ int BFIBE_encrypt(BFPublicParameters *mpk,
 		return 0;
 	}
 
-	if (!BFPublicParameters_size(mpk, inlen, &len)) {
+	if (!BFCiphertextBlock_size(mpk, inlen, &len)) {
 		PAIRINGerr(PAIRING_F_BFIBE_ENCRYPT, PAIRING_R_COMPUTE_OUTLEN_FAILURE);
 		return 0;
 	}
@@ -590,7 +682,7 @@ int BFIBE_encrypt(BFPublicParameters *mpk,
 		return 1;
 	}
 	if (*outlen < len) {
-		PAIRINGerr(PAIRING_F_BFIBE_ENCRYPT, PAIRING_R_BUFFER_TOO_SMALL;
+		PAIRINGerr(PAIRING_F_BFIBE_ENCRYPT, PAIRING_R_BUFFER_TOO_SMALL);
 		return 0;
 	}
 
@@ -637,10 +729,15 @@ int BFIBE_decrypt(BFPublicParameters *mpk,
 		return 0;
 	}
 
-	//FIXME: do we need to check no extra input?
 	p = in;
 	if (!(c = d2i_BFCiphertextBlock(NULL, &p, inlen))) {
 		PAIRINGerr(PAIRING_F_BFIBE_DECRYPT, PAIRING_R_D2I_FAILURE);
+		goto end;
+	}
+
+	/* check no remaining ciphertext */
+	if (p - in != inlen) {
+		PAIRINGerr(PAIRING_F_BFIBE_DECRYPT, PAIRING_R_INVALID_CIPHERTEXT);
 		goto end;
 	}
 
@@ -654,5 +751,4 @@ end:
 	BFCiphertextBlock_free(c);
 	return ret;
 }
-
 

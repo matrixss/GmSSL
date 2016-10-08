@@ -529,7 +529,18 @@ int ERR_load_BN_strings(void);
 # define BN_F_BN_GF2M_MOD_SOLVE_QUAD_ARR                  135
 # define BN_F_BN_GF2M_MOD_SQR                             136
 # define BN_F_BN_GF2M_MOD_SQRT                            137
+# define BN_F_BN_GFP2_CANONICAL                           153
+# define BN_F_BN_GFP2_CMP                                 154
+# define BN_F_BN_GFP2_COPY                                149
+# define BN_F_BN_GFP2_INV                                 155
+# define BN_F_BN_GFP2_IS_ZERO                             156
+# define BN_F_BN_GFP2_MUL                                 157
+# define BN_F_BN_GFP2_NEW                                 150
+# define BN_F_BN_GFP2_ONE                                 158
+# define BN_F_BN_GFP2_SET_BN                              159
+# define BN_F_BN_GFP2_ZERO                                151
 # define BN_F_BN_HASH2BN                                  147
+# define BN_F_BN_HASH_TO_RANGE                            152
 # define BN_F_BN_LSHIFT                                   145
 # define BN_F_BN_MOD_EXP2_MONT                            118
 # define BN_F_BN_MOD_EXP_MONT                             109
@@ -555,6 +566,7 @@ int ERR_load_BN_strings(void);
 # define BN_R_BAD_RECIPROCAL                              101
 # define BN_R_BIGNUM_TOO_LONG                             114
 # define BN_R_BITS_TOO_SMALL                              118
+# define BN_R_BUFFER_TOO_SMALL                            122
 # define BN_R_CALLED_WITH_EVEN_MODULUS                    102
 # define BN_R_DIV_BY_ZERO                                 103
 # define BN_R_ENCODING_ERROR                              104

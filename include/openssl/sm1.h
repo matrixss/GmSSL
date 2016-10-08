@@ -46,14 +46,20 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  * ====================================================================
  */
+/*
+ * SM1 is a block cipher with 128-bit key length and 128-bit block
+ * length. As the algorithm of the SM1 cipher is not published. The only
+ * way to use this cipher is to use the EVP API with an ENGINE and the
+ * corresponding hardware. Many crypto devices support SM1 cipher.
+ * Check the list in http://www.oscca.gov.cn/News/201607/News_1333.htm
+ * for details.
+ */
 
 #ifndef HEADER_SM1_H
 #define HEADER_SM1_H
-#ifndef NO_GMSSL
 
 #define SM1_KEY_LENGTH		16
 #define SM1_BLOCK_SIZE		16
 #define SM1_IV_LENGTH		(SM1_BLOCK_SIZE)
 
-#endif
 #endif

@@ -4940,3 +4940,19 @@
 #define SN_type4curve           "type4curve"
 #define NID_type4curve          1138
 #define OBJ_type4curve          OBJ_ibcs1,1L,4L
+
+#define SN_tate_pairing         "tate-pairing"
+#define NID_tate_pairing                1141
+#define OBJ_tate_pairing                OBJ_ibcs1,3L,1L
+
+#define SN_weil_pairing         "weil-pairing"
+#define NID_weil_pairing                1142
+#define OBJ_weil_pairing                OBJ_ibcs1,3L,2L
+
+#define SN_ate_pairing          "ate-pairing"
+#define NID_ate_pairing         1143
+#define OBJ_ate_pairing         OBJ_ibcs1,3L,3L
+
+#define SN_r_ate_pairing                "r-ate-pairing"
+#define NID_r_ate_pairing               1144
+#define OBJ_r_ate_pairing               OBJ_ibcs1,3L,4L

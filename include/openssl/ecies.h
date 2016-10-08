@@ -45,9 +45,12 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  * ====================================================================
- *
  */
-
+/*
+ * Ellitpic Curve Integrated Encryption Scheme (ECIES)
+ * see http://www.secg.org/sec1-v2.pdf (section 5)
+ * SEC1: Elliptic Curve Cryptography version 2.0
+ */
 
 #ifndef HEADER_ECIES_H
 #define HEADER_ECIES_H
@@ -150,10 +153,13 @@ int ECIES_encrypt(const ECIES_PARAMS *param,
 int ECIES_decrypt(const ECIES_PARAMS *param,
 	const unsigned char *in, size_t inlen,
 	unsigned char *out, size_t *outlen, EC_KEY *ec_key);
+
+/* Begin Stable APIs */
 int ECIES_encrypt_with_recommended(const unsigned char *in, size_t inlen,
 	unsigned char *out, size_t *outlen, EC_KEY *ec_key);
 int ECIES_decrypt_with_recommended(const unsigned char *in, size_t inlen,
 	unsigned char *out, size_t *outlen, EC_KEY *ec_key);
+/* End Stable APIs */
 
 
 #ifdef __cplusplus

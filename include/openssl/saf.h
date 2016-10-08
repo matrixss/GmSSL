@@ -46,7 +46,9 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  * ====================================================================
  */
-/* from GM/T 0019-2012
+/*
+ * SAF API is a crypto API with key and certificate management.
+ * The API is defined in the GM standard GM/T 0019-2012:
  * Universal Cryptography Service Interface Specification
  */
 

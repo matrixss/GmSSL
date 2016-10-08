@@ -53,6 +53,7 @@
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/bn.h>
+#include <openssl/bn_solinas.h>
 #include "bn_lcl.h"
 
 

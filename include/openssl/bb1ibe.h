@@ -46,20 +46,22 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  * ====================================================================
  */
-/* see [RFC 5091] Identity-Based Cryptography Standard (IBCS) #1:
+/*
+ * Boneh-Boyen Identity-Based Encryption (BB1-IBE)
+ * see [RFC 5091](https://tools.ietf.org/html/rfc5091)
+ * Identity-Based Cryptography Standard (IBCS) #1:
  * Supersingular Curve Implementations of the BF and BB1 Cryptosystems
  */
 
 #ifndef HEADER_BB1IBE_H
 #define HEADER_BB1IBE_H
 
-#include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
 #include <openssl/bn.h>
-#include <openssl/err.h>
+#include <openssl/ec.h>
 #include <openssl/evp.h>
-#include <openssl/pairing.h>
+#include <openssl/asn1.h>
+#include <openssl/fppoint.h>
 
 #define BB1IBE_VERSION	2
 
@@ -105,7 +107,9 @@ typedef struct BB1CiphertextBlock_st {
 } BB1CiphertextBlock;
 DECLARE_ASN1_FUNCTIONS(BB1CiphertextBlock)
 
-int BB1IBE_setup(PAIRING *pairing, BB1PublicParameters **mpk, BB1MasterSecret **msk);
+
+int BB1IBE_setup(const EC_GROUP *group, const EVP_MD *md,
+	BB1PublicParameters **mpk, BB1MasterSecret **msk);
 BB1PrivateKeyBlock *BB1IBE_extract_private_key(BB1PublicParameters *mpk,
 	BB1MasterSecret *msk, const char *id, size_t idlen);
 BB1CiphertextBlock *BB1IBE_do_encrypt(BB1PublicParameters *mpk,

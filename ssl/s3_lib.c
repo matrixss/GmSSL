@@ -2719,6 +2719,7 @@ static SSL_CIPHER ssl3_ciphers[] = {
 #endif                          /* OPENSSL_NO_WEAK_SSL_CIPHERS */
 
 #ifndef NO_GMSSL
+/*
     {
      1,
      TLS1_TXT_ECDHE_SM2_WITH_SM4_CBC_SM3,
@@ -2747,6 +2748,7 @@ static SSL_CIPHER ssl3_ciphers[] = {
      128,
      128,
     },
+*/
 #endif
 };
 

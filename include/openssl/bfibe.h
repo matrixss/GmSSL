@@ -46,20 +46,24 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  * ====================================================================
  */
-/* see [RFC 5091] Identity-Based Cryptography Standard (IBCS) #1:
+/*
+ * Boneh-Franklin Identity-Based Encryption (BF-IBE)
+ * see [RFC 5091](https://tools.ietf.org/html/rfc5091)
+ * Identity-Based Cryptography Standard (IBCS) #1:
  * Supersingular Curve Implementations of the BF and BB1 Cryptosystems
  */
 
 #ifndef HEADER_BFIBE_H
 #define HEADER_BFIBE_H
 
-#include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
 #include <openssl/bn.h>
-#include <openssl/err.h>
+#include <openssl/ec.h>
 #include <openssl/evp.h>
-#include <openssl/pairing.h>
+#include <openssl/asn1.h>
+#include <openssl/fppoint.h>
+
+#define BFIBE_VERSION	2
 
 #ifdef __cplusplus
 extern "C" {
@@ -70,8 +74,8 @@ typedef struct BFPublicParameters_st {
 	ASN1_OBJECT *curve;
 	BIGNUM *p;
 	BIGNUM *q;
-	ASN1_OCTET_STRING *pointP;
-	ASN1_OCTET_STRING *pointPpub;
+	FpPoint *pointP;
+	FpPoint *pointPpub;
 	ASN1_OBJECT *hashfcn;
 } BFPublicParameters;
 DECLARE_ASN1_FUNCTIONS(BFPublicParameters)
@@ -80,13 +84,13 @@ typedef struct BFMasterSecret_st {
 	long version;
 	BIGNUM *masterSecret;
 } BFMasterSecret;
-BFPublicParameters(BFMasterSecret)
+DECLARE_ASN1_FUNCTIONS(BFMasterSecret)
 
 typedef struct BFPrivateKeyBlock_st {
 	long version;
 	FpPoint *privateKey;
 } BFPrivateKeyBlock;
-BFPublicParameters(BFPrivateKeyBlock)
+DECLARE_ASN1_FUNCTIONS(BFPrivateKeyBlock)
 
 typedef struct BFCiphertextBlock_st {
 	long version;
@@ -94,17 +98,19 @@ typedef struct BFCiphertextBlock_st {
 	ASN1_OCTET_STRING *v;
 	ASN1_OCTET_STRING *w;
 } BFCiphertextBlock;
-BFPublicParameters(BFCiphertextBlock)
+DECLARE_ASN1_FUNCTIONS(BFCiphertextBlock)
 
 
-int BFIBE_setup(PAIRING *pairing, BFPublicParameters **mpk, BFMasterSecret **msk);
+int BFIBE_setup(const EC_GROUP *group, const EVP_MD *md,
+	BFPublicParameters **mpk, BFMasterSecret **msk);
 BFPrivateKeyBlock *BFIBE_extract_private_key(BFPublicParameters *mpk,
 	BFMasterSecret *msk, const char *id, size_t idlen);
 BFCiphertextBlock *BFIBE_do_encrypt(BFPublicParameters *mpk,
 	const unsigned char *in, size_t inlen,
 	const char *id, size_t idlen);
 int BFIBE_do_decrypt(BFPublicParameters *mpk,
-	const BFCiphertextBlock *in, unsigned char *out, size_t *outlen,
+	const BFCiphertextBlock *in,
+	unsigned char *out, size_t *outlen,
 	BFPrivateKeyBlock *sk);
 int BFIBE_encrypt(BFPublicParameters *mpk,
 	const unsigned char *in, size_t inlen,

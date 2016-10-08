@@ -46,14 +46,20 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  * ====================================================================
  */
+/*
+ * SSF33 is a block cipher with 128-bit key length and 128-bit block
+ * length. As the algorithm of the SM1 cipher is not published. The only
+ * way to use this cipher is to use the EVP API with an ENGINE and the
+ * corresponding hardware. Many crypto devices support SSF33 cipher.
+ * Check the list in http://www.oscca.gov.cn/News/201607/News_1333.htm
+ * for details.
+ */
 
 #ifndef HEADER_SSF33_H
 #define HEADER_SSF33_H
-#ifndef NO_GMSSL
 
 #define SSF33_KEY_LENGTH		16
 #define SSF33_BLOCK_SIZE		16
 #define SSF33_IV_LENGTH			(SSF33_BLOCK_SIZE)
 
-#endif
 #endif

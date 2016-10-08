@@ -46,6 +46,9 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  * ====================================================================
  */
+/*
+ * Common routines for all pairing-based crypto schemes
+ */
 
 #ifndef HEADER_PAIRING_H
 #define HEADER_PAIRING_H
@@ -58,96 +61,29 @@
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/kdf.h>
+#include <openssl/ec_type1.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* solinas prime */
-typedef struct {
-	int a;
-	int b;
-	int s;
-	int c;
-} BN_SOLINAS;
-
-/* TODO: here give some recommended solinas primes */
-
-int BN_bn2solinas(const BIGNUM *bn, BN_SOLINAS *solinas);
-int BN_solinas2bn(const BN_SOLINAS *solinas, BIGNUM *bn);
-
-
-/* element a in GF(p^2), where a = a0 + a1 * i, i^2 == -1 */
-typedef struct {
-	BIGNUM *a0;
-	BIGNUM *a1;
-} BN_GFP2;
-
-BN_GFP2 *BN_GFP2_new(void);
-int BN_GFP2_copy(BN_GFP2 *r, const BN_GFP2 *a);
-int BN_GFP2_zero(BN_GFP2 *a);
-int BN_GFP2_is_zero(const BN_GFP2 *a);
-int BN_GFP2_equ(const BN_GFP2 *a, const BN_GFP2 *b);
-int BN_GF2P_add(BN_GFP2 *r, const BN_GFP2 *a, const BN_GFP2 *b, const BIGNUM *p, BN_CTX *ctx);
-int BN_GFP2_sub(BN_GFP2 *r, const BN_GFP2 *a, const BN_GFP2 *b, const BIGNUM *p, BN_CTX *ctx);
-int BN_GFP2_mul(BN_GFP2 *r, const BN_GFP2 *a, const BN_GFP2 *b, const BIGNUM *p, BN_CTX *ctx);
-int BN_GFP2_sqr(BN_GFP2 *r, const BN_GFP2 *a, const BIGNUM *p, BN_CTX *ctx);
-int BN_GFP2_inv(BN_GFP2 *r, const BN_GFP2 *a, const BIGNUM *p, BN_CTX *ctx);
-int BN_GFP2_div(BN_GFP2 *r, const BN_GFP2 *a, const BN_GFP2 *b, const BIGNUM *p, BN_CTX *ctx);
-int BN_GFP2_set_bn(BN_GFP2 *r, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx);
-int BN_GF2P_add_bn(BN_GFP2 *r, const BN_GFP2 *a, const BIGNUM *b, const BIGNUM *p,BN_CTX *ctx);
-int BN_GFP2_sub_bn(BN_GFP2 *r, const BN_GFP2 *a, const BIGNUM *b, const BIGNUM *p, BN_CTX *ctx);
-int BN_GFP2_mul_bn(BN_GFP2 *r, const BN_GFP2 *a, const BIGNUM *b, const BIGNUM *p, BN_CTX *ctx);
-int BN_GFP2_div_bn(BN_GFP2 *r, const BN_GFP2 *a, const BIGNUM *b, const BIGNUM *p, BN_CTX *ctx);
-void BN_GFP2_free(BN_GFP2 *a);
-
-int BN_bn2gfp2(const BIGNUM *bn, BN_GFP2 *gfp2, const BIGNUM *p);
-int BN_gfp22bn(const BN_GFP2 *gfp2, BIGNUM *bn, const BIGNUM *p);
-
-typedef struct {
-	BN_GFP2 *x;
-	BN_GFP2 *y;
-} EC_POINT_GFP2;
-
-EC_POINT_GFP2 *EC_POINT_GFP2_new(void);
-void EC_POINT_GFP2_free(EC_POINT_GFP2 *a);
-
-typedef struct {
-	int type;
+/*
+ * PAIRING will be a opaque object to hold different types of curves and pairings
+ * currently only support type1curve
+ */
+typedef struct pairing_st {
+	int curve_type;
 	EC_GROUP *group;
-	/* online */
-	BIGNUM *order;
-	BIGNUM *eta;
-	BIGNUM *zeta;
 } PAIRING;
 
-PAIRING *PAIRING_new_by_name(int nid);
-void PAIRING_free(PAIRING *a);
-
-const EC_GROUP *PAIRING_get0_group(PAIRING *pairing);
-const BIGNUM *PAIRING_get0_order(PAIRING *pairing);
-const BIGNUM *PAIRING_get0_field(PAIRING *pairing);
-
-
-int PAIRING_compute_tate_GFp2(PAIRING *pairing, BN_GFP2 *r,
+/* compute tate pairing e(P, Q) over type1curve */
+int PAIRING_type1curve_tate(const EC_GROUP *group, BN_GFP2 *r,
 	const EC_POINT *P, const EC_POINT *Q, BN_CTX *ctx);
 
-/* for ibcs#1 */
-typedef struct {
-	BIGNUM *x;
-	BIGNUM *y;
-} FpPoint;
-DECLARE_ASN1_FUNCTIONS(FpPoint)
-
-const EVP_MD *PAIRING_nbits_to_md(int nbits);
-int PAIRING_hash_to_range(const EVP_MD *md, const char *s, size_t slen,
-	BIGNUM *bn, const BIGNUM *range);
-int PAIRING_hash_bytes(const EVP_MD *md, const char *s, size_t slen,
-	unsigned char *out, size_t len);
-int PAIRING_hash_to_point_GFp(PAIRING *pairing, const EVP_MD *md,
-	const char *id, size_t idlen, EC_POINT *point, BN_CTX *ctx);
-int PAIRING_hash_to_point_GFp2(PAIRING *pairing, const EVP_MD *md,
-	const char *id, size_t idlen, EC_POINT_GFP2 *point, BN_CTX *ctx);
+/* compute tate pairing ratio e(P1, Q1)/e(P2, Q2) over type1curve*/
+int PAIRING_type1curve_tate_ratio(const EC_GROUP *group, BN_GFP2 *r,
+	const EC_POINT *P1, const EC_POINT *Q1, const EC_POINT *P2,
+	const EC_POINT *Q2, BN_CTX *bn_ctx);
 
 
 /* BEGIN ERROR CODES */
@@ -161,6 +97,7 @@ int ERR_load_PAIRING_strings(void);
 /* Error codes for the PAIRING functions. */
 
 /* Function codes. */
+# define PAIRING_F_BB1CIPHERTEXTBLOCK_HASH_TO_RANGE       121
 # define PAIRING_F_BB1IBE_DECRYPT                         100
 # define PAIRING_F_BB1IBE_DOUBLE_HASH                     101
 # define PAIRING_F_BB1IBE_DO_DECRYPT                      102
@@ -179,26 +116,40 @@ int ERR_load_PAIRING_strings(void);
 # define PAIRING_F_BN_GFP2_MUL_BN                         115
 # define PAIRING_F_BN_GFP2_SET_BN                         116
 # define PAIRING_F_BN_GFP2_SUB_BN                         117
-# define PAIRING_F_PAIRING_EVAL_LINE_GFP2                 118
-# define PAIRING_F_PAIRING_EVAL_MILLER_GFP2               119
-# define PAIRING_F_PAIRING_PHI_GFP2                       120
+# define PAIRING_F_PAIRING_COMPUTE_TATE_TYPE1CURVE        118
+# define PAIRING_F_PAIRING_TYPE1CURVE_TATE                123
+# define PAIRING_F_TYPE1CURVE_EVAL_LINE_TEXTBOOK          122
+# define PAIRING_F_TYPE1CURVE_EVAL_MILLER_TEXTBOOK        119
+# define PAIRING_F_TYPE1CURVE_PHI                         120
 
 /* Reason codes. */
-# define PAIRING_R_BN_GFP2_FAILURE                        100
-# define PAIRING_R_BUFFER_TOO_SMALL                       101
-# define PAIRING_R_COMPUTE_OUTLEN_FAILURE                 110
-# define PAIRING_R_D2I_FAILURE                            111
-# define PAIRING_R_DECRYPT_FAILURE                        112
-# define PAIRING_R_ENCRYPT_FAILURE                        113
-# define PAIRING_R_I2D_FAILURE                            114
-# define PAIRING_R_INVALID_BFIBE_HASHFUNC                 102
-# define PAIRING_R_INVALID_MD                             107
-# define PAIRING_R_MILLER_FAILURE                         103
-# define PAIRING_R_NOT_IMPLEMENTED                        104
-# define PAIRING_R_NOT_NAMED_CURVE                        108
-# define PAIRING_R_PARSE_PAIRING                          109
-# define PAIRING_R_PHI_FAILURE                            105
-# define PAIRING_R_RAND_FAILURE                           106
+# define PAIRING_R_BB1CIPHERTEXT_INVALID_MAC              118
+# define PAIRING_R_BB1IBE_HASH_FAILURE                    119
+# define PAIRING_R_BFIBE_CIPHERTEXT_FAILURE               100
+# define PAIRING_R_BFIBE_FAILURE                          101
+# define PAIRING_R_BUFFER_TOO_SMALL                       102
+# define PAIRING_R_COMPUTE_OUTLEN_FAILURE                 103
+# define PAIRING_R_COMPUTE_TATE_FAILURE                   120
+# define PAIRING_R_D2I_FAILURE                            104
+# define PAIRING_R_DECRYPT_FAILURE                        105
+# define PAIRING_R_DOUBLE_HASH_FAILURE                    121
+# define PAIRING_R_ENCRYPT_FAILURE                        106
+# define PAIRING_R_GET_TYPE1CURVE_ZETA_FAILURE            107
+# define PAIRING_R_HASH_BYTES_FAILURE                     124
+# define PAIRING_R_I2D_FAILURE                            108
+# define PAIRING_R_INVALID_BFIBE_HASHFUNC                 109
+# define PAIRING_R_INVALID_CIPHERTEXT                     125
+# define PAIRING_R_INVALID_INPUT                          123
+# define PAIRING_R_INVALID_MD                             110
+# define PAIRING_R_INVALID_OUTPUT_BUFFER                  122
+# define PAIRING_R_INVALID_TYPE1CURVE                     111
+# define PAIRING_R_KDF_FAILURE                            126
+# define PAIRING_R_NOT_IMPLEMENTED                        112
+# define PAIRING_R_NOT_NAMED_CURVE                        113
+# define PAIRING_R_PARSE_CURVE_FAILURE                    114
+# define PAIRING_R_PARSE_MPK_FAILURE                      115
+# define PAIRING_R_PARSE_PAIRING                          116
+# define PAIRING_R_RAND_FAILURE                           117
 
 # ifdef  __cplusplus
 }

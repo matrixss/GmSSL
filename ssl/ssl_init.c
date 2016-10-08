@@ -74,8 +74,8 @@ DEFINE_RUN_ONCE_STATIC(ossl_init_ssl_base)
 
 #ifndef NO_GMSSL
     EVP_add_cipher(EVP_sms4_cbc());
-    EVP_add_cipher(EVP_sms4_gcm());
-    EVP_add_cipher(EVP_sms4_ccm());
+    //EVP_add_cipher(EVP_sms4_gcm());
+    //EVP_add_cipher(EVP_sms4_ccm());
     EVP_add_digest(EVP_sm3());
 #endif
 

@@ -1491,6 +1491,7 @@ int ERR_load_EC_strings(void);
 # define EC_F_EC_GROUP_CHECK                              170
 # define EC_F_EC_GROUP_CHECK_DISCRIMINANT                 171
 # define EC_F_EC_GROUP_COPY                               106
+# define EC_F_EC_GROUP_GENERATE_TYPE1CURVE                312
 # define EC_F_EC_GROUP_GET_CURVE_GF2M                     172
 # define EC_F_EC_GROUP_GET_CURVE_GFP                      130
 # define EC_F_EC_GROUP_GET_DEGREE                         173
@@ -1498,11 +1499,15 @@ int ERR_load_EC_strings(void);
 # define EC_F_EC_GROUP_GET_ECPKPARAMETERS                 262
 # define EC_F_EC_GROUP_GET_PENTANOMIAL_BASIS              193
 # define EC_F_EC_GROUP_GET_TRINOMIAL_BASIS                194
+# define EC_F_EC_GROUP_GET_TYPE1CURVE_ETA                 306
+# define EC_F_EC_GROUP_GET_TYPE1CURVE_ZETA                307
+# define EC_F_EC_GROUP_IS_TYPE1CURVE                      313
 # define EC_F_EC_GROUP_NEW                                108
 # define EC_F_EC_GROUP_NEW_BY_CURVE_NAME                  174
 # define EC_F_EC_GROUP_NEW_FROM_DATA                      175
 # define EC_F_EC_GROUP_NEW_FROM_ECPARAMETERS              263
 # define EC_F_EC_GROUP_NEW_FROM_ECPKPARAMETERS            264
+# define EC_F_EC_GROUP_NEW_TYPE1CURVE                     309
 # define EC_F_EC_GROUP_SET_CURVE_GF2M                     176
 # define EC_F_EC_GROUP_SET_CURVE_GFP                      109
 # define EC_F_EC_GROUP_SET_GENERATOR                      111
@@ -1522,11 +1527,13 @@ int ERR_load_EC_strings(void);
 # define EC_F_EC_POINTS_MAKE_AFFINE                       136
 # define EC_F_EC_POINT_ADD                                112
 # define EC_F_EC_POINT_CMP                                113
+# define EC_F_EC_POINT_CMP_FPPOINT                        314
 # define EC_F_EC_POINT_COPY                               114
 # define EC_F_EC_POINT_DBL                                115
 # define EC_F_EC_POINT_GET_AFFINE_COORDINATES_GF2M        183
 # define EC_F_EC_POINT_GET_AFFINE_COORDINATES_GFP         116
 # define EC_F_EC_POINT_GET_JPROJECTIVE_COORDINATES_GFP    117
+# define EC_F_EC_POINT_HASH2POINT                         308
 # define EC_F_EC_POINT_INVERT                             210
 # define EC_F_EC_POINT_IS_AT_INFINITY                     118
 # define EC_F_EC_POINT_IS_ON_CURVE                        119
@@ -1574,6 +1581,7 @@ int ERR_load_EC_strings(void);
 # define EC_F_SM2_CIPHERTEXT_VALUE_NEW                    292
 # define EC_F_SM2_CIPHERTEXT_VALUE_SIZE                   293
 # define EC_F_SM2_COMPUTE_ID_DIGEST                       278
+# define EC_F_SM2_COMPUTE_MESSAGE_DIGEST                  310
 # define EC_F_SM2_DECRYPT                                 294
 # define EC_F_SM2_DO_DECRYPT                              295
 # define EC_F_SM2_DO_ENCRYPT                              296
@@ -1586,6 +1594,7 @@ int ERR_load_EC_strings(void);
 # define EC_F_SM2_GET_PUBLIC_KEY_DATA                     281
 # define EC_F_SM2_KAP_COMPUTE_KEY                         282
 # define EC_F_SM2_KAP_CTX_INIT                            283
+# define EC_F_SM2_KAP_FINAL_CHECK                         311
 # define EC_F_SM2_KAP_PREPARE                             284
 # define EC_F_SM2_SIGN_SETUP                              285
 
@@ -1641,12 +1650,19 @@ int ERR_load_EC_strings(void);
 # define EC_R_INVALID_FORM                                104
 # define EC_R_INVALID_GROUP_ORDER                         122
 # define EC_R_INVALID_ID_LENGTH                           175
+# define EC_R_INVALID_KDF_MD                              199
 # define EC_R_INVALID_KEY                                 116
 # define EC_R_INVALID_OUTPUT_LENGTH                       161
 # define EC_R_INVALID_PEER_KEY                            133
 # define EC_R_INVALID_PENTANOMIAL_BASIS                   132
 # define EC_R_INVALID_PRIVATE_KEY                         123
+# define EC_R_INVALID_SM2_ID                              198
+# define EC_R_INVALID_SM2_KAP_CHECKSUM_LENGTH             200
+# define EC_R_INVALID_SM2_KAP_CHECKSUM_VALUE              201
 # define EC_R_INVALID_TRINOMIAL_BASIS                     137
+# define EC_R_INVALID_TYPE1CURVE                          196
+# define EC_R_INVALID_TYPE1_CURVE                         195
+# define EC_R_INVLID_TYPE1CURVE                           197
 # define EC_R_KDF_PARAMETER_ERROR                         148
 # define EC_R_KEYS_NOT_SET                                140
 # define EC_R_MALLOC_FAILED                               183

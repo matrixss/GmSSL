@@ -51,59 +51,131 @@
 #include <openssl/err.h>
 #include <openssl/sm9.h>
 
-/*
- Given user identity ID,
-
- 1. Compute t1 = H1(ID||hid, N) + ks. If t1 == 0 then return "Failed"
- 2. Compute t2 = ks * t1^{-1} mod N
- 3. Compute ds = [t2]P1
- */
 
 SM9PrivateKey *SM9_extract_private_key(SM9PublicParameters *mpk,
 	SM9MasterSecret *msk, const char *id, size_t idlen)
 {
 	int e = 1;
 	SM9PrivateKey *ret = NULL;
-	BIGNUM *N = NULL;
-	BIGNUM *t1 = NULL;
-
+	BN_CTX *bn_ctx = NULL;
+	EC_GROUP *group = NULL;
+	EC_POINT *point = NULL;
+	unsigned char *buf = NULL;
+	BIGNUM *h;
+	const EVP_MD *md;
+	int point_form = POINT_CONVERSION_UNCOMPRESSED;
+	size_t size;
 
 	if (!mpk || !msk || !id || idlen <= 0) {
 		SM9err(SM9_F_SM9_EXTRACT_PRIVATE_KEY,
-			ERR_R_PASSED_NULL_PARAMETERS);
+			ERR_R_PASSED_NULL_PARAMETER);
+		return NULL;
+	}
+	if (strlen(id) != idlen || idlen > SM9_MAX_ID_LENGTH) {
+		SM9err(SM9_F_SM9_EXTRACT_PRIVATE_KEY,
+			SM9_R_INVALID_ID);
 		return NULL;
 	}
 
-	if (!(ret = SM9PrivateKey_new())) {
+	/* BN_CTX */
+	if (!(bn_ctx = BN_CTX_new())) {
 		SM9err(SM9_F_SM9_EXTRACT_PRIVATE_KEY,
 			ERR_R_MALLOC_FAILURE);
-		return NULL;
+		goto end;
 	}
+	BN_CTX_start(bn_ctx);
 
-	if (!(t1 = SM9_hash1(id, idlen, N))) {
-		goto end;
-	}
-	if (!BN_add(t1, t1, N)) {
-		goto end;
-	}
-	if (BN_is_zero(t1)) {
-		goto end;
-	}
-
-	if (!BN_mod_inverse(t1, t1, N, bn_ctx)) {
+	/* EC_GROUP */
+	if (!(group = EC_GROUP_new_type1curve_ex(mpk->p,
+		mpk->a, mpk->b, mpk->pointP1->data, mpk->pointP1->length,
+		mpk->order, mpk->cofactor, bn_ctx))) {
+		SM9err(SM9_F_SM9_EXTRACT_PRIVATE_KEY, SM9_R_INVALID_TYPE1CURVE);
 		goto end;
 	}
 
-	if (!BN_mod_mul(t2, t1, ks, N, bn_ctx)) {
+	/* malloc */
+	ret = SM9PrivateKey_new();
+	point = EC_POINT_new(group);
+	h = BN_CTX_get(bn_ctx);
+
+	if (!ret || !point || !h) {
+		SM9err(SM9_F_SM9_EXTRACT_PRIVATE_KEY, ERR_R_MALLOC_FAILURE);
 		goto end;
 	}
 
-	if (!EC_POINT_mul(group, mks->sk, NULL, t2, P1, bn_ctx)) {
+	/* md = mpk->hashfcn */
+	if (!(md = EVP_get_digestbyobj(mpk->hashfcn))) {
+		SM9err(SM9_F_SM9_EXTRACT_PRIVATE_KEY, SM9_R_INVALID_MD);
+		goto end;
+	}
+
+	/* h = H1(ID||HID) in [0, mpk->order] */
+	if (!(buf = OPENSSL_malloc(idlen + 1))) {
+		SM9err(SM9_F_SM9_EXTRACT_PRIVATE_KEY, ERR_R_MALLOC_FAILURE);
+		goto end;
+	}
+	memcpy(buf, id, idlen);
+	buf[idlen] = SM9_HID;
+	if (!SM9_hash1(md, &h, buf, idlen+1, mpk->order, bn_ctx)) {
+		SM9err(SM9_F_SM9_EXTRACT_PRIVATE_KEY, ERR_R_SM9_LIB);
+		goto end;
+	}
+
+	/* h = h + msk->masterSecret (mod mpk->order) */
+	if (!BN_mod_add(h, h, msk->masterSecret, mpk->order, bn_ctx)) {
+		SM9err(SM9_F_SM9_EXTRACT_PRIVATE_KEY, ERR_R_BN_LIB);
+		goto end;
+	}
+
+	/* if h is zero, return failed */
+	if (BN_is_zero(h)) {
+		SM9err(SM9_F_SM9_EXTRACT_PRIVATE_KEY, SM9_R_ZERO_ID);
+		goto end;
+	}
+
+	/* h = msk->masterSecret * h^-1 (mod mpk->order) */
+	if (!BN_mod_inverse(h, h, mpk->order, bn_ctx)) {
+		SM9err(SM9_F_SM9_EXTRACT_PRIVATE_KEY, ERR_R_BN_LIB);
+		goto end;
+	}
+	if (!BN_mod_mul(h, msk->masterSecret, h, mpk->order, bn_ctx)) {
+		SM9err(SM9_F_SM9_EXTRACT_PRIVATE_KEY, ERR_R_BN_LIB);
+		goto end;
+	}
+
+	/* sk->privatePoint = mpk->pointP1 * h */
+	if (!EC_POINT_mul(group, point, h, NULL, NULL, bn_ctx)) {
+		SM9err(SM9_F_SM9_EXTRACT_PRIVATE_KEY, ERR_R_EC_LIB);
+		goto end;
+	}
+	if (!(size = EC_POINT_point2oct(group, point, point_form,
+		NULL, 0, bn_ctx))) {
+		SM9err(SM9_F_SM9_EXTRACT_PRIVATE_KEY, ERR_R_EC_LIB);
+		goto end;
+	}
+	if (!ASN1_OCTET_STRING_set(ret->privatePoint, NULL, size)) {
+		SM9err(SM9_F_SM9_EXTRACT_PRIVATE_KEY, ERR_R_MALLOC_FAILURE);
+		goto end;
+	}
+	if (!EC_POINT_point2oct(group, point, point_form,
+		ret->privatePoint->data, ret->privatePoint->length, bn_ctx)) {
+		SM9err(SM9_F_SM9_EXTRACT_PRIVATE_KEY, ERR_R_EC_LIB);
 		goto end;
 	}
 
 	e = 0;
-end:
-	return ret;
-}
 
+end:
+	if (e && ret) {
+		SM9PrivateKey_free(ret);
+		ret = NULL;
+	}
+	if (bn_ctx) {
+		BN_CTX_end(bn_ctx);
+	}
+	BN_CTX_free(bn_ctx);
+	EC_GROUP_free(group);
+	EC_POINT_free(point);
+	OPENSSL_free(buf);
+	return NULL;
+}
