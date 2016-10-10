@@ -50,6 +50,7 @@
 
 #include <openssl/err.h>
 #include <openssl/sm9.h>
+#include "sm9_lcl.h"
 
 int SM9_setup_type1curve(const EC_GROUP *group, const EVP_MD *md,
 	SM9PublicParameters **pmpk, SM9MasterSecret **pmsk)
@@ -165,6 +166,12 @@ int SM9_setup_type1curve(const EC_GROUP *group, const EVP_MD *md,
 		goto end;
 	}
 
+	/* set mpk->g1 = e(P1, Ppub) */
+	//TODO
+
+	/* set mpk->g2 = e(Ppub, P2) */
+	//TODO
+
 	/* random msk->masterSecret in [2, mpk->order - 1] */
 	do {
 		if (!BN_rand_range(msk->masterSecret, mpk->order)) {
@@ -209,5 +216,12 @@ end:
 	BN_CTX_free(bn_ctx);
 	EC_POINT_free(point);
 	return ret;
+}
+
+int SM9_setup_by_pairing_name(int nid,
+	SM9PublicParameters **mpk, SM9MasterSecret **msk)
+{
+	EC_GROUP *group = EC_GROUP_new_sm9s256t1();
+	return SM9_setup_type1curve(group, EVP_sm3(), mpk, msk);
 }
 

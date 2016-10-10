@@ -1,4 +1,3 @@
-/* crypto/sm9/sm9_lib.c */
 /* ====================================================================
  * Copyright (c) 2016 The GmSSL Project.  All rights reserved.
  *
@@ -48,52 +47,77 @@
  * ====================================================================
  */
 
-#include <openssl/err.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 #include <openssl/sm9.h>
-#include "sm9_lcl.h"
 
-int SM9_hash1(const EVP_MD *md, BIGNUM **r,
-	const char *id, size_t idlen,
-	unsigned char hid,
-	const BIGNUM *range,
-	BN_CTX *ctx)
+int main(int argc, char **argv)
 {
-	unsigned char *buf;
+	int ret = -1;
+	SM9PublicParameters *mpk = NULL;
+	SM9MasterSecret *msk = NULL;
+	SM9PrivateKey *sk = NULL;
+	const char *id = "alice@gmssl.org";
+	unsigned char mbuf[] = "hello world";
+	unsigned char cbuf[2048];
+	unsigned char pbuf[2048];
+	unsigned char sbuf[2048];
+	unsigned char dgst[EVP_MAX_MD_SIZE];
+	size_t mlen, clen, plen, slen, dgstlen;
 
-	if (!(buf = OPENSSL_malloc(idlen + 1))) {
-		return 0;
-	}
-	memcpy(buf, id, idlen);
-	buf[idlen] = hid;
-
-	if (!BN_hash_to_range(md, r, buf, idlen + 1, range, ctx)) {
-		OPENSSL_free(buf);
-		return 0;
-	}
-
-	OPENSSL_free(buf);
-	return 1;
-}
-
-int SM9_hash2(const EVP_MD *md, BIGNUM **r,
-	const unsigned char *data, size_t datalen,
-	const unsigned char *elem, size_t elemlen,
-	const BIGNUM *range, BN_CTX *ctx)
-{
-	unsigned char *buf;
-
-	if (!(buf = OPENSSL_malloc(datalen + elemlen))) {
-		return 0;
-	}
-	memcpy(buf, data, datalen);
-	memcpy(buf + datalen, elem, elemlen);
-
-	if (!BN_hash_to_range(md, r, buf, datalen + elemlen, range, ctx)) {
-		OPENSSL_free(buf);
-		return 0;
+	if (!SM9_setup_by_pairing_name(NID_sm9s256t1, &mpk, &msk)) {
+		ERR_print_errors_fp(stderr);
+		goto end;
 	}
 
-	OPENSSL_free(buf);
-	return 1;
+	if (!(sk = SM9_extract_private_key(mpk, msk, id, strlen(id)))) {
+		ERR_print_errors_fp(stderr);
+		goto end;
+	}
+
+	mlen = sizeof(mbuf);
+	clen = sizeof(cbuf);
+	if (!SM9_encrypt_with_recommended(mpk, mbuf, mlen, cbuf, &clen, id, strlen(id))) {
+		ERR_print_errors_fp(stderr);
+		goto end;
+	}
+
+	plen = sizeof(pbuf);
+	if (!SM9_decrypt_with_recommended(mpk, cbuf, clen, pbuf, &plen, sk, id, strlen(id))) {
+		ERR_print_errors_fp(stderr);
+		goto end;
+	}
+
+	if (plen != mlen || memcmp(pbuf, mbuf, mlen) != 0) {
+		fprintf(stderr, "decrypt failed\n");
+		goto end;
+	}
+	printf("sm9 encryption passed\n");
+
+	dgstlen = sizeof(dgst);
+	if (EVP_Digest(mbuf, mlen, dgst, &dgstlen, EVP_sm3(), NULL)) {
+		ERR_print_errors_fp(stderr);
+		goto end;
+	}
+
+	slen = sizeof(sbuf);
+	if (!SM9_sign(mpk, dgst, dgstlen, sbuf, &slen, sk)) {
+		ERR_print_errors_fp(stderr);
+		goto end;
+	}
+
+	if (!SM9_verify(mpk, dgst, dgstlen, sbuf, slen, id, strlen(id))) {
+		ERR_print_errors_fp(stderr);
+		goto end;
+	}
+	printf("sm9 signature scheme passed!\n");
+
+	ret = 0;
+end:
+	SM9PublicParameters_free(mpk);
+	SM9MasterSecret_free(msk);
+	SM9PrivateKey_free(sk);
+	return ret;
 }
 

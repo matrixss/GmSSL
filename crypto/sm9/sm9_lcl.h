@@ -1,4 +1,3 @@
-/* crypto/sm9/sm9_lib.c */
 /* ====================================================================
  * Copyright (c) 2016 The GmSSL Project.  All rights reserved.
  *
@@ -48,52 +47,83 @@
  * ====================================================================
  */
 
+#ifndef HEADER_SM9_LCL_H
+#define HEADER_SM9_LCL_H
+
 #include <openssl/err.h>
 #include <openssl/sm9.h>
-#include "sm9_lcl.h"
+
+/* Curve ID */
+#define SM9_CID_TYPE0CURVE	0x10
+#define SM9_CID_TYPE1CURVE	0x11
+#define SM9_CID_TYPE2CURVE	0x12
+
+/* Pairing ID */
+#define SM9_EID_TATE		0x01
+#define SM9_EID_WEIL		0x02
+#define SM9_EID_ATE		0x03
+#define SM9_EID_RATE		0x04
+
+#define SM9_MAX_ID_LENGTH	127
+
+/* not clear what it is */
+#define SM9_HID			0xc9
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+struct SM9PublicParameters_st {
+	ASN1_OBJECT *curve;
+	BIGNUM *p;
+	BIGNUM *a;
+	BIGNUM *b;
+	BIGNUM *beta;
+	BIGNUM *order;
+	BIGNUM *cofactor;
+	BIGNUM *k;
+	ASN1_OCTET_STRING *pointP1;
+	ASN1_OCTET_STRING *pointP2;
+	ASN1_OBJECT *pairing;
+	ASN1_OCTET_STRING *pointPpub;
+	BIGNUM *g1; /* g1 = e(P1, Ppub) */
+	BIGNUM *g2; /* g2 = e(Ppub, P2) */
+	ASN1_OBJECT *hashfcn;
+};
+
+struct SM9MasterSecret_st {
+	BIGNUM *masterSecret;
+};
+
+struct SM9PrivateKey_st {
+	ASN1_OCTET_STRING *privatePoint;
+};
+
+struct SM9Ciphertext_st {
+	ASN1_OCTET_STRING *pointC1;
+	ASN1_OCTET_STRING *c2;
+	ASN1_OCTET_STRING *c3;
+};
+
+struct SM9Signature_st {
+	BIGNUM *h;
+	ASN1_OCTET_STRING *pointS;
+};
+
 
 int SM9_hash1(const EVP_MD *md, BIGNUM **r,
-	const char *id, size_t idlen,
-	unsigned char hid,
-	const BIGNUM *range,
-	BN_CTX *ctx)
-{
-	unsigned char *buf;
-
-	if (!(buf = OPENSSL_malloc(idlen + 1))) {
-		return 0;
-	}
-	memcpy(buf, id, idlen);
-	buf[idlen] = hid;
-
-	if (!BN_hash_to_range(md, r, buf, idlen + 1, range, ctx)) {
-		OPENSSL_free(buf);
-		return 0;
-	}
-
-	OPENSSL_free(buf);
-	return 1;
-}
+	const char *id, size_t idlen, unsigned char hid,
+	const BIGNUM *range, BN_CTX *ctx);
 
 int SM9_hash2(const EVP_MD *md, BIGNUM **r,
 	const unsigned char *data, size_t datalen,
 	const unsigned char *elem, size_t elemlen,
-	const BIGNUM *range, BN_CTX *ctx)
-{
-	unsigned char *buf;
+	const BIGNUM *range, BN_CTX *ctx);
 
-	if (!(buf = OPENSSL_malloc(datalen + elemlen))) {
-		return 0;
-	}
-	memcpy(buf, data, datalen);
-	memcpy(buf + datalen, elem, elemlen);
+EC_GROUP *EC_GROUP_new_sm9s256t1(void);
 
-	if (!BN_hash_to_range(md, r, buf, datalen + elemlen, range, ctx)) {
-		OPENSSL_free(buf);
-		return 0;
-	}
 
-	OPENSSL_free(buf);
-	return 1;
+#ifdef __cplusplus
 }
-
+#endif
+#endif

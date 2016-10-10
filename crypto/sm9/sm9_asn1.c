@@ -55,7 +55,7 @@
 #include <openssl/objects.h>
 #include <openssl/pairing.h>
 #include <openssl/sm9.h>
-
+#include "sm9_lcl.h"
 
 ASN1_SEQUENCE(SM9PublicParameters) = {
 	ASN1_SIMPLE(SM9PublicParameters, curve, ASN1_OBJECT),

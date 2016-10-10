@@ -50,6 +50,7 @@
 
 #include <openssl/err.h>
 #include <openssl/sm9.h>
+#include "sm9_lcl.h"
 
 
 SM9PrivateKey *SM9_extract_private_key(SM9PublicParameters *mpk,
@@ -60,18 +61,17 @@ SM9PrivateKey *SM9_extract_private_key(SM9PublicParameters *mpk,
 	BN_CTX *bn_ctx = NULL;
 	EC_GROUP *group = NULL;
 	EC_POINT *point = NULL;
-	unsigned char *buf = NULL;
 	BIGNUM *h;
 	const EVP_MD *md;
 	int point_form = POINT_CONVERSION_UNCOMPRESSED;
 	size_t size;
 
-	if (!mpk || !msk || !id || idlen <= 0) {
+	if (!mpk || !msk || !id) {
 		SM9err(SM9_F_SM9_EXTRACT_PRIVATE_KEY,
 			ERR_R_PASSED_NULL_PARAMETER);
 		return NULL;
 	}
-	if (strlen(id) != idlen || idlen > SM9_MAX_ID_LENGTH) {
+	if (strlen(id) != idlen || idlen <= 0 || idlen > SM9_MAX_ID_LENGTH) {
 		SM9err(SM9_F_SM9_EXTRACT_PRIVATE_KEY,
 			SM9_R_INVALID_ID);
 		return NULL;
@@ -110,13 +110,7 @@ SM9PrivateKey *SM9_extract_private_key(SM9PublicParameters *mpk,
 	}
 
 	/* h = H1(ID||HID) in [0, mpk->order] */
-	if (!(buf = OPENSSL_malloc(idlen + 1))) {
-		SM9err(SM9_F_SM9_EXTRACT_PRIVATE_KEY, ERR_R_MALLOC_FAILURE);
-		goto end;
-	}
-	memcpy(buf, id, idlen);
-	buf[idlen] = SM9_HID;
-	if (!SM9_hash1(md, &h, buf, idlen+1, mpk->order, bn_ctx)) {
+	if (!SM9_hash1(md, &h, id, idlen, SM9_HID, mpk->order, bn_ctx)) {
 		SM9err(SM9_F_SM9_EXTRACT_PRIVATE_KEY, ERR_R_SM9_LIB);
 		goto end;
 	}
@@ -176,6 +170,5 @@ end:
 	BN_CTX_free(bn_ctx);
 	EC_GROUP_free(group);
 	EC_POINT_free(point);
-	OPENSSL_free(buf);
 	return NULL;
 }
