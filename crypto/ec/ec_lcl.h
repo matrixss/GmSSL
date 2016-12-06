@@ -574,6 +574,21 @@ struct ec_key_method_st {
                   const unsigned char *sigbuf, int sig_len, EC_KEY *eckey);
     int (*verify_sig)(const unsigned char *dgst, int dgst_len,
                       const ECDSA_SIG *sig, EC_KEY *eckey);
+#ifndef NO_GMSSL
+    ECIES_CIPHERTEXT_VALUE *(*do_encrypt)(const void *params,
+                                          const unsigned char *in, size_t inlen,
+                                          EC_KEY *ec_key);
+    int (*do_decrypt)(const void *params,
+                      const ECIES_CIPHERTEXT_VALUE *in,
+                      unsigned char *out, size_t *outlen,
+                      EC_KEY *ec_key);
+    int (*encrypt)(const void *params,
+                   const unsigned char *in, size_t inlen,
+                   unsigned char *out, size_t *outlen,
+                   EC_KEY *ec_key);
+    int (*decrypt)(const void *params, const unsigned char *in, size_t inlen,
+                   unsigned char *out, size_t *outlen, EC_KEY *ec_key);
+#endif
 } /* EC_KEY_METHOD */ ;
 
 #define EC_KEY_METHOD_DYNAMIC   1

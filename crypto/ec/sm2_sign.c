@@ -315,7 +315,7 @@ end:
 int sm2_do_verify(const unsigned char *dgst, int dgstlen,
 	const ECDSA_SIG *sig, EC_KEY *ec_key)
 {
-	int ret = SM2_VERIFY_INNER_ERROR;
+	int ret = -1;
 	const EC_GROUP *ec_group;
 	const EC_POINT *pub_key;
 	EC_POINT *point = NULL;
@@ -418,9 +418,9 @@ int sm2_do_verify(const unsigned char *dgst, int dgstlen,
 		goto end;
 	}
 	if (BN_ucmp(t, sig->r) == 0) {
-		ret = SM2_VERIFY_SUCCESS;
+		ret = 1;
 	} else {
-		ret = SM2_VERIFY_FAILED;
+		ret = 0;
 	}
 
 end:

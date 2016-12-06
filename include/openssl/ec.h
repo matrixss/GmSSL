@@ -38,6 +38,7 @@ extern "C" {
 
 # ifndef NO_GMSSL
 #  define OPENSSL_ECC_MAX_FIELD_BITS 4096
+#  include <openssl/ecies.h>
 # endif
 
 # ifndef OPENSSL_ECC_MAX_FIELD_BITS
@@ -1232,6 +1233,34 @@ void EC_KEY_METHOD_set_verify(EC_KEY_METHOD *meth,
                                                 const ECDSA_SIG *sig,
                                                 EC_KEY *eckey));
 
+#ifndef NO_GMSSL
+void EC_KEY_METHOD_set_encrypt(EC_KEY_METHOD *meth,
+                               int (*encrypt)(const void *params,
+                                              const unsigned char *in,
+                                              size_t inlen,
+                                              unsigned char *out,
+                                              size_t *outlen,
+                                              EC_KEY *ec_key),
+                               ECIES_CIPHERTEXT_VALUE *
+                                   (*do_encrypt)(const void *params,
+                                                 const unsigned char *in,
+                                                 size_t inlen,
+                                                 EC_KEY *ec_key));
+
+void EC_KEY_METHOD_set_decrypt(EC_KEY_METHOD *meth,
+                               int (*decrypt)(const void *params,
+                                              const unsigned char *in,
+                                              size_t inlen,
+                                              unsigned char *out,
+                                              size_t *outlen,
+                                              EC_KEY *ec_key),
+                               int (*do_decrypt)(const void *params,
+                                                 const ECIES_CIPHERTEXT_VALUE *in,
+                                                 unsigned char *out,
+                                                 size_t *outlen,
+                                                 EC_KEY *ec_key));
+#endif
+
 void EC_KEY_METHOD_get_init(EC_KEY_METHOD *meth,
                             int (**pinit)(EC_KEY *key),
                             void (**pfinish)(EC_KEY *key),
@@ -1242,6 +1271,8 @@ void EC_KEY_METHOD_get_init(EC_KEY_METHOD *meth,
                                                  const BIGNUM *priv_key),
                             int (**pset_public)(EC_KEY *key,
                                                 const EC_POINT *pub_key));
+
+
 
 void EC_KEY_METHOD_get_keygen(EC_KEY_METHOD *meth,
                               int (**pkeygen)(EC_KEY *key));
@@ -1275,6 +1306,33 @@ void EC_KEY_METHOD_get_verify(EC_KEY_METHOD *meth,
                                                   int dgst_len,
                                                   const ECDSA_SIG *sig,
                                                   EC_KEY *eckey));
+#ifndef NO_GMSSL
+void EC_KEY_METHOD_get_encrypt(EC_KEY_METHOD *meth,
+                               int (**pencrypt)(const void *params,
+                                                const unsigned char *in,
+                                                size_t inlen,
+                                                unsigned char *out,
+                                                size_t *outlen,
+                                                EC_KEY *ec_key),
+                               ECIES_CIPHERTEXT_VALUE *
+                                   (**pdo_encrypt)(const void *params,
+                                                   const unsigned char *in,
+                                                   size_t inlen,
+                                                   EC_KEY *ec_key));
+
+void EC_KEY_METHOD_get_decrypt(EC_KEY_METHOD *meth,
+                               int (**pdecrypt)(const void *params,
+                                                const unsigned char *in,
+                                                size_t inlen,
+                                                unsigned char *out,
+                                                size_t *outlen,
+                                                EC_KEY *ec_key),
+                               int (**pdo_decrypt)(const void *params,
+                                                   const ECIES_CIPHERTEXT_VALUE *in,
+                                                   unsigned char *out,
+                                                   size_t *outlen,
+                                                   EC_KEY *ec_key));
+#endif
 
 # define ECParameters_dup(x) ASN1_dup_of(EC_KEY,i2d_ECParameters,d2i_ECParameters,x)
 

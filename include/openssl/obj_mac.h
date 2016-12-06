@@ -4812,6 +4812,16 @@
 #define NID_sms4_wrap           1110
 #define OBJ_sms4_wrap           OBJ_sm_scheme,104L,11L
 
+#define SN_sms4_wrap_pad                "SMS4-WRAP-PAD"
+#define LN_sms4_wrap_pad                "sms4-wrap-pad"
+#define NID_sms4_wrap_pad               1145
+#define OBJ_sms4_wrap_pad               OBJ_sm_scheme,104L,12L
+
+#define SN_sms4_ocb             "SMS4-OCB"
+#define LN_sms4_ocb             "sms4-ocb"
+#define NID_sms4_ocb            1146
+#define OBJ_sms4_ocb            OBJ_sm_scheme,104L,100L
+
 #define OBJ_sm7         OBJ_sm_scheme,105L
 
 #define OBJ_sm8         OBJ_sm_scheme,106L

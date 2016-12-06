@@ -55,17 +55,17 @@
 #include <openssl/err.h>
 #include <openssl/crypto.h>
 #include <openssl/paillier.h>
+#include "pai_lcl.h"
 
 PAILLIER *PAILLIER_new(void)
 {
 	PAILLIER *ret = NULL;
 
-	if (!(ret = OPENSSL_malloc(sizeof(*ret)))) {
+	if (!(ret = OPENSSL_zalloc(sizeof(*ret)))) {
 		PAILLIERerr(PAILLIER_F_PAILLIER_NEW, PAILLIER_R_MALLOC_FAILED);
 		return NULL;
 	}
 
-	memset(ret, 0, sizeof(*ret));
 	return ret;
 }
 
@@ -88,7 +88,6 @@ int PAILLIER_generate_key(PAILLIER *key, int bits)
 	BIGNUM *p = NULL;
 	BIGNUM *q = NULL;
 	BN_CTX *bn_ctx = NULL;
-
 
 	p = BN_new();
 	q = BN_new();

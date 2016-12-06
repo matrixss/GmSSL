@@ -56,6 +56,10 @@
 #include <openssl/bn_solinas.h>
 #include "bn_lcl.h"
 
+/*
+ * generate the solinas prime tables,
+ * use it for fast check of solinas
+ */
 
 static BN_SOLINAS BN_solinas_table[] = {
 	{ 192, 16, -1, -1 },

@@ -2,7 +2,7 @@ IF[{- !$disabled{"engine"} -}]
   IF[{- $disabled{"dynamic-engine"} -}]
     LIBS=../libcrypto
     SOURCE[../libcrypto]=\
-            e_padlock.c {- $target{padlock_asm_src} -}
+            e_padlock.c {- $target{padlock_asm_src} -} \
     IF[{- !$disabled{capieng} -}]
       SOURCE[../libcrypto]=e_capi.c
     ENDIF

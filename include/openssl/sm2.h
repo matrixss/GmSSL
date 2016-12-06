@@ -83,7 +83,7 @@ extern "C" {
 int SM2_get_public_key_data(EC_KEY *ec_key, unsigned char *out, size_t *outlen);
 
 int SM2_compute_id_digest(const EVP_MD *md, const char *id, size_t idlen,
-	unsigned char *out, unsigned int *outlen, EC_KEY *ec_key);
+	unsigned char *out, size_t *outlen, EC_KEY *ec_key);
 
 /*
  * Generate GM/T 0003.2-2012 message digest for SM2 signature scheme.
@@ -91,7 +91,7 @@ int SM2_compute_id_digest(const EVP_MD *md, const char *id, size_t idlen,
  */
 int SM2_compute_message_digest(const EVP_MD *id_md, const EVP_MD *msg_md,
 	const unsigned char *msg, size_t msglen, const char *id, size_t idlen,
-	unsigned char *out, unsigned char *outlen,
+	unsigned char *out, size_t *outlen,
 	EC_KEY *ec_key);
 
 
@@ -101,10 +101,15 @@ typedef struct sm2_enc_params_st {
 	point_conversion_form_t point_form;
 } SM2_ENC_PARAMS;
 
+
+/* SM2_ENC_PARAMS_dup() is used by ec_pmeth.c,
+ * so the SM2_ENC_PARAMS_new() and SM2_ENC_PARAMS_free() is also provided
+ */
 SM2_ENC_PARAMS *SM2_ENC_PARAMS_new(void);
 SM2_ENC_PARAMS *SM2_ENC_PARAMS_dup(const SM2_ENC_PARAMS *param);
-int SM2_ENC_PRAAMS_init_with_recommended(SM2_ENC_PARAMS *param);
 void SM2_ENC_PARAMS_free(SM2_ENC_PARAMS *param);
+
+int SM2_ENC_PARAMS_init_with_recommended(SM2_ENC_PARAMS *param);
 
 
 typedef struct sm2_ciphertext_value_st {
@@ -148,14 +153,13 @@ int SM2_decrypt(const SM2_ENC_PARAMS *params,
 	unsigned char *out, size_t *outlen,
 	EC_KEY *ec_key);
 
-/* Stable APIs */
+
 int SM2_encrypt_with_recommended(const unsigned char *in, size_t inlen,
 	unsigned char *out, size_t *outlen, EC_KEY *ec_key);
 int SM2_decrypt_with_recommended(const unsigned char *in, size_t inlen,
 	unsigned char *out, size_t *outlen, EC_KEY *ec_key);
 
 
-#define SM2_signature_size(ec_key)	ECDSA_size(ec_key)
 int SM2_sign_setup(EC_KEY *ec_key, BN_CTX *ctx, BIGNUM **a, BIGNUM **b);
 ECDSA_SIG *SM2_do_sign_ex(const unsigned char *dgst, int dgstlen,
 	const BIGNUM *a, const BIGNUM *b, EC_KEY *ec_key);
@@ -166,16 +170,10 @@ int SM2_do_verify(const unsigned char *dgst, int dgstlen,
 int SM2_sign_ex(int type, const unsigned char *dgst, int dgstlen,
 	unsigned char *sig, unsigned int *siglen,
 	const BIGNUM *k, const BIGNUM *x, EC_KEY *ec_key);
-
-/* Stable APIs */
 int SM2_sign(int type, const unsigned char *dgst, int dgstlen,
 	unsigned char *sig, unsigned int *siglen, EC_KEY *eckey);
-#define SM2_VERIFY_SUCCESS	 1
-#define SM2_VERIFY_FAILED	 0
-#define SM2_VERIFY_INNER_ERROR	-1
 int SM2_verify(int type, const unsigned char *dgst, int dgstlen,
 	const unsigned char *sig, int siglen, EC_KEY *ec_key);
-
 
 
 typedef struct sm2_kap_ctx_st {

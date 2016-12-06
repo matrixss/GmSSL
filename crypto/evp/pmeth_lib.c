@@ -45,7 +45,10 @@ static const EVP_PKEY_METHOD *standard_methods[] = {
 #ifndef OPENSSL_NO_EC
     &ecx25519_pkey_meth,
 #endif
-    &hkdf_pkey_meth
+    &hkdf_pkey_meth,
+#ifndef NO_GMSSL
+    &cbcmac_pkey_meth
+#endif
 };
 
 DECLARE_OBJ_BSEARCH_CMP_FN(const EVP_PKEY_METHOD *, const EVP_PKEY_METHOD *,

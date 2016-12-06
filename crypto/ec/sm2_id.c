@@ -198,7 +198,7 @@ end:
 }
 
 int SM2_compute_id_digest(const EVP_MD *md, const char *id, size_t idlen,
-	unsigned char *out, unsigned int *outlen, EC_KEY *ec_key)
+	unsigned char *out, size_t *outlen, EC_KEY *ec_key)
 {
 	int ret = 0;
 	EVP_MD_CTX *md_ctx = NULL;
@@ -293,7 +293,7 @@ end:
  */
 int SM2_compute_message_digest(const EVP_MD *id_md, const EVP_MD *msg_md,
 	const unsigned char *msg, size_t msglen, const char *id, size_t idlen,
-	unsigned char *out, unsigned char *outlen,
+	unsigned char *out, size_t *outlen,
 	EC_KEY *ec_key)
 {
 	int ret = 0;

@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-CA.pl - friendlier interface for OpenSSL certificate programs
+CA.pl - friendlier interface for GmSSL certificate programs
 
 =head1 SYNOPSIS
 
@@ -24,7 +24,7 @@ B<CA.pl>
 =head1 DESCRIPTION
 
 The B<CA.pl> script is a perl script that supplies the relevant command line
-arguments to the B<openssl> command for some common certificate operations.
+arguments to the B<gmssl> command for some common certificate operations.
 It is intended to simplify the process of certificate creation and management
 by the use of some simple options.
 
@@ -132,11 +132,11 @@ directly. The following example shows the steps that would typically be taken.
 
 Create some DSA parameters:
 
- openssl dsaparam -out dsap.pem 1024
+ gmssl dsaparam -out dsap.pem 1024
 
 Create a DSA CA certificate and private key:
 
- openssl req -x509 -newkey dsa:dsap.pem -keyout cacert.pem -out cacert.pem
+ gmssl req -x509 -newkey dsa:dsap.pem -keyout cacert.pem -out cacert.pem
 
 Create the CA directories and files:
 
@@ -147,7 +147,7 @@ enter cacert.pem when prompted for the CA file name.
 Create a DSA certificate request and private key (a different set of parameters
 can optionally be created first):
 
- openssl req -out newreq.pem -newkey dsa:dsap.pem
+ gmssl req -out newreq.pem -newkey dsa:dsap.pem
 
 Sign the request:
 
@@ -171,9 +171,9 @@ be wrong. In this case the command:
 can be used and the B<OPENSSL_CONF> environment variable changed to point to
 the correct path of the configuration file "openssl.cnf".
 
-The script is intended as a simple front end for the B<openssl> program for use
+The script is intended as a simple front end for the B<gmssl> program for use
 by a beginner. Its behaviour isn't always what is wanted. For more control over the
-behaviour of the certificate commands call the B<openssl> command directly.
+behaviour of the certificate commands call the B<gmssl> command directly.
 
 =head1 ENVIRONMENT VARIABLES
 
@@ -190,7 +190,7 @@ L<config(5)>
 
 Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the GmSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

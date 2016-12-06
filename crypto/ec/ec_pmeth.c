@@ -95,6 +95,7 @@ typedef struct {
         ECIES_PARAMS *ecies;
         SM2_ENC_PARAMS *sm2;
     } enc_params;
+    char *sm2_id;
 #endif
 } EC_PKEY_CTX;
 
@@ -463,20 +464,7 @@ static int pkey_ec_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
 
 #ifndef NO_GMSSL
     case EVP_PKEY_CTRL_SM2_ID:
-	/*
-        if (!SM2_set_id(ctx->pkey->pkey.ec, p2, dctx->md)) {
-            ECerr(EC_F_PKEY_EC_CTRL, EC_R_SET_SM2_ID_FAILED);
-            return 0;
-        }
-	*/
-        return 1;
-
-/*
-    case EVP_PKEY_CTRL_SM2_ID_DIGEST:
-        if (!SM2_set_id_digest(ctx->pkey->pkey.ec, p2)) {
-            ECerr(EC_F_PKEY_EC_CTRL, EC_R_SET_SM2_ID_DIGEST_FAILED);
-            return 0;
-        }
+        dctx->sm2_id = strdup((char *)p2);
         return 1;
 
     case EVP_PKEY_CTRL_EC_ENCRYPT_PARAMS:
@@ -502,7 +490,6 @@ static int pkey_ec_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
             return 0;
         }
         return 1;
-*/
 #endif
 
     case EVP_PKEY_CTRL_EC_KDF_TYPE:
@@ -602,8 +589,6 @@ static int pkey_ec_ctrl_str(EVP_PKEY_CTX *ctx,
             return -2;
         return EVP_PKEY_CTX_set_ec_param_enc(ctx, param_enc);
 #ifndef NO_GMSSL
-    } else if (!strcmp(type, "sm2_id")) {
-        return EVP_PKEY_CTX_set_sm2_id(ctx, value);
     } else if (!strcmp(type, "ec_scheme")) {
         int scheme;
         if (!strcmp(value, "secg")) {
@@ -614,6 +599,8 @@ static int pkey_ec_ctrl_str(EVP_PKEY_CTX *ctx,
             return -2;
         }
         return EVP_PKEY_CTX_set_ec_scheme(ctx, scheme);
+    } else if (!strcmp(type, "sm2_id")) {
+        return EVP_PKEY_CTX_set_sm2_id(ctx, value);
 #endif
     } else if (strcmp(type, "ecdh_kdf_md") == 0) {
         const EVP_MD *md;

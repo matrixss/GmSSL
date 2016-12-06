@@ -5,7 +5,7 @@
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 #include <openssl/engine.h>
-#include "./sm2.h"
+#include <openssl/sm2.h>
 
 RAND_METHOD fake_rand;
 const RAND_METHOD *old_rand;
@@ -214,11 +214,13 @@ EC_KEY *new_ec_key(const EC_GROUP *group,
 		}
 	}
 
+	/*
 	if (id) {
 		if (!SM2_set_id(ec_key, id, id_md)) {
 			goto end;
 		}
 	}
+	*/
 
 	ok = 1;
 end:
@@ -253,6 +255,8 @@ int test_sm2_sign(const EC_GROUP *group,
 	ECDSA_SIG *sm2sig = NULL;
 	BIGNUM *rr = NULL;
 	BIGNUM *ss = NULL;
+	const BIGNUM *sig_r;
+	const BIGNUM *sig_s;
 
 	change_rand(k);
 
@@ -262,7 +266,7 @@ int test_sm2_sign(const EC_GROUP *group,
 	}
 
 	dgstlen = sizeof(dgst);
-	if (!SM2_get_id_digest(ec_key, dgst, &dgstlen)) {
+	if (!SM2_compute_id_digest(id_md, id, strlen(id), dgst, &dgstlen, ec_key)) {
 		fprintf(stderr, "error: %s %d\n", __FUNCTION__, __LINE__);
 		goto err;
 	}
@@ -270,14 +274,21 @@ int test_sm2_sign(const EC_GROUP *group,
 		fprintf(stderr, "error: %s %d\n", __FUNCTION__, __LINE__);
 		goto err;
 	}
+
 	dgstlen = sizeof(dgst);
-	if (!SM2_compute_message_digest(dgst, &dgstlen,
-		id_md, id, ec_key, msg_md, M, strlen(M))) {
+	if (!SM2_compute_message_digest(id_md, msg_md,
+		(const unsigned char *)M, strlen(M), id, strlen(id),
+		dgst, &dgstlen, ec_key)) {
 		fprintf(stderr, "error: %s %d\n", __FUNCTION__, __LINE__);
 		goto err;
 	}
 	if (!hexequbin(e, dgst, dgstlen)) {
+		int i;
 		fprintf(stderr, "error: %s %d\n", __FUNCTION__, __LINE__);
+
+		printf("%s\n", e);
+		for (i = 0; i < dgstlen; i++) { printf("%02X", dgst[i]); } printf("\n");
+
 		goto err;
 	}
 
@@ -297,17 +308,20 @@ int test_sm2_sign(const EC_GROUP *group,
 		goto err;
 	}
 
-	if (BN_cmp(sm2sig->r, rr) || BN_cmp(sm2sig->s, ss)) {
+	ECDSA_SIG_get0(sm2sig, &sig_r, &sig_s);
+
+	if (BN_cmp(sig_r, rr) || BN_cmp(sig_s, ss)) {
 		fprintf(stderr, "error: %s %d\n", __FUNCTION__, __LINE__);
 		goto err;
 	}
+
 
 	/* verify */
 	if (!(pubkey = new_ec_key(group, NULL, xP, yP, id, id_md))) {
 		fprintf(stderr, "error: %s %d\n", __FUNCTION__, __LINE__);
 		goto err;
 	}
-	if (SM2_verify(type, dgst, dgstlen, sig, siglen, pubkey) != SM2_VERIFY_SUCCESS) {
+	if (1 != SM2_verify(type, dgst, dgstlen, sig, siglen, pubkey)) {
 		fprintf(stderr, "error: %s %d\n", __FUNCTION__, __LINE__);
 		goto err;
 	}
@@ -345,8 +359,10 @@ int test_sm2_enc(const EC_GROUP *group,
 	}
 
 	buflen = sizeof(buf);
-	if (!SM2_encrypt_with_recommended(buf, &buflen,
-		(const unsigned char *)M, strlen(M), ec_key)) {
+	if (!SM2_encrypt_with_recommended(
+		(const unsigned char *)M, strlen(M),
+		buf, &buflen,
+		ec_key)) {
 		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
 		goto end;
 	}
@@ -363,7 +379,10 @@ int test_sm2_enc(const EC_GROUP *group,
 		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
 		goto end;
 	}
-	if (!SM2_decrypt_with_recommended(msg, &msglen, buf, buflen, ec_key)) {
+	if (!SM2_decrypt_with_recommended(
+		buf, buflen,
+		msg, &msglen,
+		ec_key)) {
 		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
 		goto end;
 	}
@@ -421,6 +440,7 @@ int test_sm2_kap(const EC_GROUP *group,
 		goto end;
 	}
 
+	/*
 	zalen = sizeof(za);
 	if (!SM2_get_id_digest(eckeyA, za, &zalen)) {
 		goto end;
@@ -429,6 +449,7 @@ int test_sm2_kap(const EC_GROUP *group,
 	if (!SM2_get_id_digest(eckeyB, zb, &zblen)) {
 		goto end;
 	}
+	*/
 
 	if (!hexequbin(ZA, za, zalen)) {
 		fprintf(stderr, "error (%s %d):  ZA != value in test vector !!!\n", __FILE__, __LINE__);
@@ -439,10 +460,10 @@ int test_sm2_kap(const EC_GROUP *group,
 		goto end;
 	}
 
-	if (!SM2_KAP_CTX_init(&ctxA, eckeyA, pubkeyB, 1, 1)) {
+	if (!SM2_KAP_CTX_init(&ctxA, eckeyA, ZA, strlen(ZA), pubkeyB, ZB, strlen(ZB), 1, 1)) {
 		goto end;
 	}
-	if (!SM2_KAP_CTX_init(&ctxB, eckeyB, pubkeyA, 0, 1)) {
+	if (!SM2_KAP_CTX_init(&ctxB, eckeyB, ZB, strlen(ZB), pubkeyA, ZA, strlen(ZA), 0, 1)) {
 		goto end;
 	}
 
@@ -712,531 +733,6 @@ end:
 	return ret;
 }
 
-int test_evp_pkey_sign(EVP_PKEY *pkey, int do_sm2, int verbose)
-{
-	int ret = 0;
-	EVP_PKEY_CTX *pkctx = NULL;
-	int type = do_sm2 ? NID_sm_scheme : NID_secg_scheme;
-	unsigned char dgst[EVP_MAX_MD_SIZE] = "hello world";
-	size_t dgstlen;
-	unsigned char sig[256];
-	size_t siglen;
-
-
-	if (!(pkctx = EVP_PKEY_CTX_new(pkey, NULL))) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	/* EVP_PKEY_sign() */
-
-	if (!EVP_PKEY_sign_init(pkctx)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	if (!EVP_PKEY_CTX_set_ec_scheme(pkctx, type)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	dgstlen = 32;
-	memset(sig, 0, sizeof(sig));
-	siglen = sizeof(sig);
-	if (!EVP_PKEY_sign(pkctx, sig, &siglen, dgst, dgstlen)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	if (verbose > 1) {
-		size_t i;
-		printf("signature (%zu bytes) = ", siglen);
-		for (i = 0; i < siglen; i++) {
-			printf("%02X", sig[i]);
-		}
-		printf("\n");
-	}
-
-	if (!EVP_PKEY_verify_init(pkctx)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	if (!EVP_PKEY_CTX_set_ec_scheme(pkctx, type)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	if (EVP_PKEY_verify(pkctx, sig, siglen, dgst, dgstlen) != SM2_VERIFY_SUCCESS) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	if (verbose) {
-		printf("%s(%s) passed\n", __FUNCTION__, OBJ_nid2sn(type));
-	}
-
-	ret = 1;
-end:
-	EVP_PKEY_CTX_free(pkctx);
-	return ret;
-}
-
-int test_evp_pkey_encrypt(EVP_PKEY *pkey, int do_sm2, int verbose)
-{
-	int ret = 0;
-	EVP_PKEY_CTX *pkctx = NULL;
-	int type = do_sm2 ? NID_sm_scheme : NID_secg_scheme;
-	unsigned char msg[] = "hello world this is the message";
-	size_t msglen = sizeof(msg);
-	unsigned char cbuf[512];
-	size_t cbuflen = sizeof(cbuf);
-	unsigned char mbuf[512];
-	size_t mbuflen = sizeof(mbuf);
-	int len;
-	unsigned int ulen;
-
-	if (!(pkctx = EVP_PKEY_CTX_new(pkey, NULL))) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	/* EVP_PKEY_encrypt() */
-
-	if (!EVP_PKEY_encrypt_init(pkctx)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	if (!EVP_PKEY_CTX_set_ec_scheme(pkctx, type)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	cbuflen = sizeof(cbuf);
-	if (!EVP_PKEY_encrypt(pkctx, cbuf, &cbuflen, msg, msglen)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	if (verbose > 1) {
-		size_t i;
-		printf("ciphertext (%zu bytes) = ", cbuflen);
-		for (i = 0; i < cbuflen; i++) {
-			printf("%02X", cbuf[i]);
-		}
-		printf("\n");
-	}
-
-	if (!EVP_PKEY_decrypt_init(pkctx)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	if (!EVP_PKEY_CTX_set_ec_scheme(pkctx, type)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	memset(mbuf, 0, sizeof(mbuf));
-	mbuflen = sizeof(mbuf);
-	if (!EVP_PKEY_decrypt(pkctx, mbuf, &mbuflen, cbuf, cbuflen)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	if (verbose > 1) {
-		printf("original  message = %s\n", msg);
-		printf("decrypted message = %s\n", mbuf);
-	}
-
-	if (verbose) {
-		printf("%s(%s) passed\n", __FUNCTION__, OBJ_nid2sn(type));
-	}
-
-	ret = 1;
-end:
-	EVP_PKEY_CTX_free(pkctx);
-	return ret;
-}
-
-int test_evp_pkey_encrypt_old(EVP_PKEY *pkey, int verbose)
-{
-	int ret = 0;
-	unsigned char msg[] = "hello world this is the message";
-	size_t msglen = sizeof(msg);
-	unsigned char cbuf[512];
-	size_t cbuflen = sizeof(cbuf);
-	unsigned char mbuf[512];
-	size_t mbuflen = sizeof(mbuf);
-
-	int len;
-
-	if ((len = EVP_PKEY_encrypt_old(cbuf, msg, (int)msglen, pkey)) <= 0) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	if (verbose > 1) {
-		int i;
-		printf("ciphertext (%d bytes) = ", len);
-		for (i = 0; i < len; i++) {
-			printf("%02X", cbuf[i]);
-		}
-		printf("\n");
-	}
-
-	memset(mbuf, 0, sizeof(mbuf));
-	if ((len = EVP_PKEY_decrypt_old(mbuf, cbuf, len, pkey)) <= 0) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	if (verbose > 1) {
-		printf("original  message = %s\n", msg);
-		printf("decrypted message = %s\n", mbuf);
-	}
-
-	if (verbose) {
-		printf("%s() passed!\n", __FUNCTION__);
-	}
-
-	ret = 1;
-end:
-	return ret;
-}
-
-int test_evp_sign(EVP_PKEY *pkey, const EVP_MD *md, int verbose)
-{
-	int ret = 0;
-	EVP_MD_CTX *mdctx = NULL;
-	unsigned char msg[] = "hello world this is the message";
-	size_t msglen = sizeof(msg);
-	unsigned char sig[256];
-	unsigned int siglen = (unsigned int)sizeof(sig);
-	unsigned int i;
-
-	if (!(mdctx = EVP_MD_CTX_create())) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	if (!EVP_SignInit_ex(mdctx, md, NULL)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	if (!EVP_SignUpdate(mdctx, msg, msglen)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	if (!EVP_SignFinal(mdctx, sig, &siglen, pkey)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	if (verbose > 1) {
-		size_t i;
-		printf("signature (%u bytes) = ", siglen);
-		for (i = 0; i < siglen; i++) {
-			printf("%02X", sig[i]);
-		}
-		printf("\n");
-	}
-
-	if (!EVP_VerifyInit_ex(mdctx, md, NULL)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	if (!EVP_VerifyUpdate(mdctx, msg, msglen)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	if (EVP_VerifyFinal(mdctx, sig, siglen, pkey) != SM2_VERIFY_SUCCESS) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	if (verbose) {
-		printf("%s() passed\n", __FUNCTION__);
-	}
-
-	ret = 1;
-
-end:
-	EVP_MD_CTX_destroy(mdctx);
-	return ret;
-}
-
-int test_evp_digestsign(EVP_PKEY *pkey, int do_sm2, const EVP_MD *md, int verbose)
-{
-	int ret = 0;
-	EVP_MD_CTX *mdctx = NULL;
-	EVP_PKEY_CTX *pkctx;
-	int type = do_sm2 ? NID_sm_scheme : NID_secg_scheme;
-	unsigned char msg[] = "hello world this is the message";
-	size_t msglen = sizeof(msg);
-	unsigned char sig[256];
-	size_t siglen = (unsigned int)sizeof(sig);
-
-	if (!(mdctx = EVP_MD_CTX_create())) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	pkctx = NULL;
-	if (!EVP_DigestSignInit(mdctx, &pkctx, md, NULL, pkey)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	if (!EVP_PKEY_CTX_set_ec_scheme(pkctx, type)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	if (!EVP_DigestSignUpdate(mdctx, msg, msglen)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	siglen = sizeof(sig);
-	if (!EVP_DigestSignFinal(mdctx, sig, &siglen)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	pkctx = NULL;
-	if (!EVP_DigestVerifyInit(mdctx, &pkctx, md, NULL, pkey)) {
-		ERR_print_errors_fp(stderr);
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	if (!EVP_PKEY_CTX_set_ec_scheme(pkctx, type)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	if (!EVP_DigestVerifyUpdate(mdctx, msg, msglen)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	if (!EVP_DigestVerifyFinal(mdctx, sig, siglen)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	if (verbose) {
-		printf("%s() passed\n", __FUNCTION__);
-	}
-
-	ret = 1;
-end:
-	EVP_MD_CTX_destroy(mdctx);
-	return ret;
-}
-
-#define NUM_PKEYS	3
-#define MAX_PKEY_SIZE	1024
-
-int test_evp_seal(int curve_id, const EVP_CIPHER *cipher, BIO *out, int verbose)
-{
-	int ret = 0;
-	EVP_PKEY *pkey[NUM_PKEYS] = {0};
-	EVP_CIPHER_CTX *cctx = NULL;
-	unsigned char iv[16];
-	unsigned char *ek[NUM_PKEYS] = {0};
-	int ekl[NUM_PKEYS];
-	unsigned char msg1[] = "Hello ";
-	unsigned char msg2[] = "World!";
-	unsigned char cbuf[256];
-	unsigned char mbuf[256];
-	unsigned char *p;
-	int len, clen, mlen, i;
-
-
-	for (i = 0; i < NUM_PKEYS; i++) {
-		if (!(pkey[i] = genpkey(curve_id, out, verbose))) {
-			fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-			goto end;
-		}
-		ekl[i] = MAX_PKEY_SIZE;
-		ek[i] = OPENSSL_malloc(ekl[i]);
-	}
-	RAND_bytes(iv, sizeof(iv));
-
-	if (!(cctx = EVP_CIPHER_CTX_new())) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	if ((i = EVP_SealInit(cctx, cipher, ek, ekl, iv, pkey, NUM_PKEYS)) != NUM_PKEYS) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	if (verbose > 1) {
-		for (i = 0; i < NUM_PKEYS; i++) {
-			int j;
-			BIO_printf(out, "ek[%d] (%d-byte) = ", i, ekl[i]);
-			for (j = 0; j < ekl[i]; j++) {
-				BIO_printf(out, "%02X", ek[i][j]);
-			}
-			BIO_printf(out, "\n");
-		}
-	}
-
-	p = cbuf;
-	len = sizeof(cbuf);
-	if (!EVP_SealUpdate(cctx, p, &len, msg1, sizeof(msg1)-1)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-	p += len;
-
-	len = sizeof(cbuf) - (p - cbuf);
-	if (!EVP_SealUpdate(cctx, p, &len, msg2, sizeof(msg2)-1)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-	p += len;
-
-	len = sizeof(cbuf) - (p - cbuf);
-	if (!EVP_SealFinal(cctx, p, &len)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-	p += len;
-
-	clen = p - cbuf;
-
-	if (verbose > 1) {
-		BIO_printf(out, "ciphertext (%d-byte) = ", clen);
-		for (i = 0; i < clen; i++) {
-			BIO_printf(out, "%02X", cbuf[i]);
-		}
-		BIO_printf(out, "\n");
-	}
-
-	if (!EVP_OpenInit(cctx, cipher, ek[1], ekl[1], iv, pkey[1])) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	memset(mbuf, 0, sizeof(mbuf));
-	p = mbuf;
-	len = sizeof(mbuf);
-
-	if (!EVP_OpenUpdate(cctx, p, &len, cbuf, clen)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-	p += len;
-	len = sizeof(mbuf) - len;
-
-	if (!EVP_OpenFinal(cctx, p, &len)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-	p += len;
-
-	mlen = p - mbuf;
-
-	if (verbose > 1) {
-		BIO_printf(out, "message = %s%s\n", (char *)msg1, (char *)msg2);
-		BIO_printf(out, "message = %s\n", (char *)mbuf);
-	}
-
-	if (verbose) {
-		BIO_printf(out, "%s() passed!\n", __FUNCTION__);
-	}
-
-	ret = 1;
-
-end:
-	EVP_CIPHER_CTX_free(cctx);
-	for (i = 0; i < NUM_PKEYS; i++) {
-		EVP_PKEY_free(pkey[i]);
-		OPENSSL_free(ek[i]);
-	}
-	return ret;
-}
-
-int test_sm2_evp(int verbose)
-{
-	int ret = 0;
-	EVP_PKEY *pkey = NULL;
-	BIO *out = NULL;
-	int curve_id = NID_sm2p256v1;
-	const EVP_MD *md = EVP_sm3();
-	const EVP_CIPHER *cipher = EVP_sms4_cbc();
-
-	ERR_load_crypto_strings();
-
-	out = BIO_new_fp(stderr, BIO_NOCLOSE);
-
-	if (!(pkey = genpkey(curve_id, out, verbose))) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	/* test sm2sign */
-	if (!test_evp_pkey_sign(pkey, 1, verbose)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	/* test ecdsa */
-	if (!test_evp_pkey_sign(pkey, 0, verbose)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	/* test sm2encrypt */
-	if (!test_evp_pkey_encrypt(pkey, 1, verbose)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	/* test ecies */
-	if (!test_evp_pkey_encrypt(pkey, 0, verbose)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	/* test ec default encrypt */
-	if (!test_evp_pkey_encrypt_old(pkey, verbose)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	/* test ec default sign */
-	if (!test_evp_sign(pkey, md, verbose)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	/* test seal/open */
-	if (!test_evp_seal(curve_id, cipher, out, verbose)) {
-		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
-		goto end;
-	}
-
-	ret = 1;
-
-end:
-	if (ret != 1) {
-		ERR_print_errors_fp(stderr);
-	}
-	EVP_PKEY_free(pkey);
-	return ret;
-}
-
 int main(int argc, char **argv)
 {
 	int ret = -1;
@@ -1263,9 +759,6 @@ int main(int argc, char **argv)
 		goto err;
 	}
 
-	if (!test_sm2_evp(1)) {
-		goto err;
-	}
 
 	ret =0;
 err:

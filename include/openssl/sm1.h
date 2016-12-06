@@ -62,4 +62,17 @@
 #define SM1_BLOCK_SIZE		16
 #define SM1_IV_LENGTH		(SM1_BLOCK_SIZE)
 
+
+struct sm1_key_st {
+	unsigned char *data;
+	size_t datalen;
+};
+typedef struct sm1_key_st SM1_KEY;
+
+int SM1_set_encrypt_key(SM1_KEY *key, const unsigned char *user_key);
+int SM1_set_decrypt_key(SM1_KEY *key, const unsigned char *user_key);
+int SM1_encrypt(const unsigned char *in, unsigned char *out, SM1_KEY *key);
+int SM1_decrypt(const unsigned char *in, unsigned char *out, SM1_KEY *key);
+
+
 #endif

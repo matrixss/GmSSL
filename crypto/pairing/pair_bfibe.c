@@ -74,6 +74,15 @@
  * zeta (i.e. h in ec params) = (p + 1)/q. In normall ecc, h is very small
  * such as 1 or 4. But in pairing, the zeta (or h) is very large.
  */
+struct BFPublicParameters_st {
+	long version;
+	ASN1_OBJECT *curve;
+	BIGNUM *p;
+	BIGNUM *q;
+	FpPoint *pointP;
+	FpPoint *pointPpub;
+	ASN1_OBJECT *hashfcn;
+};
 ASN1_SEQUENCE(BFPublicParameters) = {
 	ASN1_SIMPLE(BFPublicParameters, version, LONG),
 	ASN1_SIMPLE(BFPublicParameters, curve, ASN1_OBJECT),
@@ -86,6 +95,10 @@ ASN1_SEQUENCE(BFPublicParameters) = {
 IMPLEMENT_ASN1_FUNCTIONS(BFPublicParameters)
 IMPLEMENT_ASN1_DUP_FUNCTION(BFPublicParameters)
 
+struct BFMasterSecret_st {
+	long version;
+	BIGNUM *masterSecret;
+};
 ASN1_SEQUENCE(BFMasterSecret) = {
 	ASN1_SIMPLE(BFMasterSecret, version, LONG),
 	ASN1_SIMPLE(BFMasterSecret, masterSecret, BIGNUM)
@@ -93,6 +106,10 @@ ASN1_SEQUENCE(BFMasterSecret) = {
 IMPLEMENT_ASN1_FUNCTIONS(BFMasterSecret)
 IMPLEMENT_ASN1_DUP_FUNCTION(BFMasterSecret)
 
+struct BFPrivateKeyBlock_st {
+	long version;
+	FpPoint *privateKey;
+};
 ASN1_SEQUENCE(BFPrivateKeyBlock) = {
 	ASN1_SIMPLE(BFPrivateKeyBlock, version, LONG),
 	ASN1_SIMPLE(BFPrivateKeyBlock, privateKey, FpPoint)
@@ -100,6 +117,12 @@ ASN1_SEQUENCE(BFPrivateKeyBlock) = {
 IMPLEMENT_ASN1_FUNCTIONS(BFPrivateKeyBlock)
 IMPLEMENT_ASN1_DUP_FUNCTION(BFPrivateKeyBlock)
 
+struct BFCiphertextBlock_st {
+	long version;
+	FpPoint *u;
+	ASN1_OCTET_STRING *v;
+	ASN1_OCTET_STRING *w;
+};
 ASN1_SEQUENCE(BFCiphertextBlock) = {
 	ASN1_SIMPLE(BFCiphertextBlock, version, LONG),
 	ASN1_SIMPLE(BFCiphertextBlock, u, FpPoint),

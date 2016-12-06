@@ -1142,3 +1142,5 @@ tate_pairing		1141
 weil_pairing		1142
 ate_pairing		1143
 r_ate_pairing		1144
+sms4_wrap_pad		1145
+sms4_ocb		1146

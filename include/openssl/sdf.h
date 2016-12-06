@@ -1,5 +1,5 @@
 /* ====================================================================
- * Copyright (c) 2015 - 2016 The GmSSL Project.  All rights reserved.
+ * Copyright (c) 2016 The GmSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -49,11 +49,22 @@
 /*
  * SDF API is a cryptographic API for PCI-E cards defined in standard
  * GM/T 0018-2012: Interface Specifications of Cryptography Device Application
+ *
+ * Note: this header file follows the specification of GM/T 0018-2012. As we
+ * know, some vendors provide header files with some differences, especially
+ * the definations of data structures. So be sure to check the file provided by
+ * vendors and compare with this one.
+ *
+ * The implementations of SDF API from different vendors might have different
+ * behaviors on the same function. The comments in this file will show
+ * information and warnings on these issues. If the application developer use
+ * the GmSSL implementation, see `crypto/gmapi/sdf_lcl.h` for more information.
  */
 
 #ifndef HEADER_SDF_H
 #define HEADER_SDF_H
 
+#include <stdio.h>
 #include <openssl/sgd.h>
 
 #ifdef __cplusplus
@@ -64,10 +75,15 @@ extern "C" {
 typedef struct DeviceInfo_st{
 	unsigned char IssuerName[40];
 	unsigned char DeviceName[16];
-	unsigned char DeviceSerial[16];
+	unsigned char DeviceSerial[16];	/* 8-char date +
+					 * 3-char batch num +
+					 * 5-char serial num
+					 */
 	unsigned int DeviceVersion;
 	unsigned int StandardVersion;
-	unsigned int AsymAlgAbility[2];
+	unsigned int AsymAlgAbility[2];	/* AsymAlgAbility[0] = algors
+					 * AsymAlgAbility[1] = modulus lens
+					 */
 	unsigned int SymAlgAbility;
 	unsigned int HashAlgAbility;
 	unsigned int BufferSize;
@@ -94,9 +110,8 @@ typedef struct RSArefPrivateKey_st {
 	unsigned char coef[RSAref_MAX_PLEN];
 } RSArefPrivateKey;
 
-
-#define ECCref_MAX_BITS			256
-#define ECCref_MAX_LEN			((ECCref_MAX_BITS+7) / 8)
+#define ECCref_MAX_BITS		512
+#define ECCref_MAX_LEN		((ECCref_MAX_BITS+7) / 8)
 #define ECCref_MAX_CIPHER_LEN	136
 
 typedef struct ECCrefPublicKey_st {
@@ -107,15 +122,21 @@ typedef struct ECCrefPublicKey_st {
 
 typedef struct ECCrefPrivateKey_st {
     unsigned int  bits;
-    unsigned char D[ECCref_MAX_LEN];
+    unsigned char K[ECCref_MAX_LEN];
 } ECCrefPrivateKey;
 
 typedef struct ECCCipher_st {
-	unsigned int  clength;
 	unsigned char x[ECCref_MAX_LEN];
 	unsigned char y[ECCref_MAX_LEN];
-	unsigned char C[ECCref_MAX_CIPHER_LEN];
-    unsigned char M[ECCref_MAX_LEN];
+	unsigned char M[32]; /* digest of plaintext */
+	unsigned int L; /* length of ciphertext `C` */
+	unsigned char C[1];
+	/*
+	 * In SM2 ciphertext the `M` is the hash result of the plaintext
+	 * with generated Diffie-Hellman keys, so the length should be the
+	 * digest length, for SM3 it is 256-bit which is equal to the max
+	 * elliptic curve key length (256-bit).
+	 */
 } ECCCipher;
 
 typedef struct ECCSignature_st {
@@ -123,6 +144,15 @@ typedef struct ECCSignature_st {
 	unsigned char s[ECCref_MAX_LEN];
 } ECCSignature;
 
+/*
+typedef struct SDF_ENVELOPEDKEYBLOB {
+	unsigned long Version;
+	unsigned long ulSymmAlgID;
+	ECCCIPHERBLOB ECCCipehrBlob;
+	ECCPUBLICKEYBLOB PubKey;
+	unsigned char cbEncryptedPrivKey[64];
+} ENVELOPEDKEYBLOB, *PENVELOPEDKEYBLOB;
+*/
 
 int SDF_OpenDevice(
 	void **phDeviceHandle);
@@ -204,45 +234,6 @@ int SDF_ExchangeDigitEnvelopeBaseOnRSA(
 	unsigned char *pucDEOutput,
 	unsigned int *puiDELength);
 
-int SDF_GetSymmKeyHandle(
-	void *hSessionHandle,
-	unsigned int uiKeyIndex,
-	void **phKeyHandle);
-
-int SDF_GenerateKeyWithKEK(
-	void *hSessionHandle,
-	unsigned int uiKeyBits,
-	unsigned int uiAlgID,
-	unsigned int uiKEKIndex,
-	unsigned char *pucKey,
-	unsigned int *puiKeyLength,
-	void **phKeyHandle);
-
-int SDF_ImportKeyWithKEK(
-	void *hSessionHandle,
-	unsigned int uiAlgID,
-	unsigned int uiKEKIndex,
-	unsigned char *pucKey,
-	unsigned int uiKeyLength,
-	void **phKeyHandle);
-
-int SDF_ImportKey(
-	void *hSessionHandle,
-	unsigned char *pucKey,
-	unsigned int uiKeyLength,
-	void **phKeyHandle);
-
-int SDF_DestroyKey(
-	void *hSessionHandle,
-	void *hKeyHandle);
-
-int SDF_GenerateKeyPair_ECC(
-	void *hSessionHandle,
-	unsigned int uiAlgID,
-	unsigned int  uiKeyBits,
-	ECCrefPublicKey *pucPublicKey,
-	ECCrefPrivateKey *pucPrivateKey);
-
 int SDF_ExportSignPublicKey_ECC(
 	void *hSessionHandle,
 	unsigned int uiKeyIndex,
@@ -252,6 +243,34 @@ int SDF_ExportEncPublicKey_ECC(
 	void *hSessionHandle,
 	unsigned int uiKeyIndex,
 	ECCrefPublicKey *pucPublicKey);
+
+int SDF_GenerateKeyPair_ECC(
+	void *hSessionHandle,
+	unsigned int uiAlgID,
+	unsigned int  uiKeyBits,
+	ECCrefPublicKey *pucPublicKey,
+	ECCrefPrivateKey *pucPrivateKey);
+
+int SDF_GenerateKeyWithIPK_ECC(
+	void *hSessionHandle,
+	unsigned int uiIPKIndex,
+	unsigned int uiKeyBits,
+	ECCCipher *pucKey,
+	void **phKeyHandle);
+
+int SDF_GenerateKeyWithEPK_ECC(
+	void *hSessionHandle,
+	unsigned int uiKeyBits,
+	unsigned int uiAlgID,
+	ECCrefPublicKey *pucPublicKey,
+	ECCCipher *pucKey,
+	void **phKeyHandle);
+
+int SDF_ImportKeyWithISK_ECC(
+	void *hSessionHandle,
+	unsigned int uiISKIndex,
+	ECCCipher *pucKey,
+	void **phKeyHandle);
 
 int SDF_GenerateAgreementDataWithECC(
 	void *hSessionHandle,
@@ -286,27 +305,6 @@ int SDF_GenerateAgreementDataAndKeyWithECC(
 	ECCrefPublicKey *pucResponseTmpPublicKey,
 	void **phKeyHandle);
 
-int SDF_GenerateKeyWithIPK_ECC(
-	void *hSessionHandle,
-	unsigned int uiIPKIndex,
-	unsigned int uiKeyBits,
-	ECCCipher *pucKey,
-	void **phKeyHandle);
-
-int SDF_GenerateKeyWithEPK_ECC(
-	void *hSessionHandle,
-	unsigned int uiKeyBits,
-	unsigned int uiAlgID,
-	ECCrefPublicKey *pucPublicKey,
-	ECCCipher *pucKey,
-	void **phKeyHandle);
-
-int SDF_ImportKeyWithISK_ECC(
-	void *hSessionHandle,
-	unsigned int uiISKIndex,
-	ECCCipher *pucKey,
-	void **phKeyHandle);
-
 int SDF_ExchangeDigitEnvelopeBaseOnECC(
 	void *hSessionHandle,
 	unsigned int uiKeyIndex,
@@ -314,6 +312,27 @@ int SDF_ExchangeDigitEnvelopeBaseOnECC(
 	ECCrefPublicKey *pucPublicKey,
 	ECCCipher *pucEncDataIn,
 	ECCCipher *pucEncDataOut);
+
+int SDF_GenerateKeyWithKEK(
+	void *hSessionHandle,
+	unsigned int uiKeyBits,
+	unsigned int uiAlgID,
+	unsigned int uiKEKIndex,
+	unsigned char *pucKey,
+	unsigned int *puiKeyLength,
+	void **phKeyHandle);
+
+int SDF_ImportKeyWithKEK(
+	void *hSessionHandle,
+	unsigned int uiAlgID,
+	unsigned int uiKEKIndex,
+	unsigned char *pucKey,
+	unsigned int uiKeyLength,
+	void **phKeyHandle);
+
+int SDF_DestroyKey(
+	void *hSessionHandle,
+	void *hKeyHandle);
 
 int SDF_ExternalPublicKeyOperation_RSA(
 	void *hSessionHandle,
@@ -323,18 +342,9 @@ int SDF_ExternalPublicKeyOperation_RSA(
 	unsigned char *pucDataOutput,
 	unsigned int *puiOutputLength);
 
-int SDF_ExternalPrivateKeyOperation_RSA(
-	void *hSessionHandle,
-	RSArefPrivateKey *pucPrivateKey,
-	unsigned char *pucDataInput,
-	unsigned int uiInputLength,
-	unsigned char *pucDataOutput,
-	unsigned int *puiOutputLength);
-
 int SDF_InternalPublicKeyOperation_RSA(
 	void *hSessionHandle,
 	unsigned int uiKeyIndex,
-	unsigned int uiKeyUsage,
 	unsigned char *pucDataInput,
 	unsigned int uiInputLength,
 	unsigned char *pucDataOutput,
@@ -343,19 +353,10 @@ int SDF_InternalPublicKeyOperation_RSA(
 int SDF_InternalPrivateKeyOperation_RSA(
 	void *hSessionHandle,
 	unsigned int uiKeyIndex,
-	unsigned int uiKeyUsage,
 	unsigned char *pucDataInput,
 	unsigned int uiInputLength,
 	unsigned char *pucDataOutput,
 	unsigned int *puiOutputLength);
-
-int SDF_ExternalSign_ECC(
-	void *hSessionHandle,
-	unsigned int uiAlgID,
-	ECCrefPrivateKey *pucPrivateKey,
-	unsigned char *pucData,
-	unsigned int uiDataLength,
-	ECCSignature *pucSignature);
 
 int SDF_ExternalVerify_ECC(
 	void *hSessionHandle,
@@ -374,7 +375,7 @@ int SDF_InternalSign_ECC(
 
 int SDF_InternalVerify_ECC(
 	void *hSessionHandle,
-	unsigned int uiISKIndex,
+	unsigned int uiIPKIndex,
 	unsigned char *pucData,
 	unsigned int uiDataLength,
 	ECCSignature *pucSignature);
@@ -457,15 +458,10 @@ int SDF_HashFinal(void *hSessionHandle,
 	unsigned char *pucHash,
 	unsigned int *puiHashLength);
 
-int SDF_HashInit_ECC(
-	void *hSessionHandle,
-	unsigned int uiAlgID,
-	unsigned char *pucParamID);
-
 int SDF_CreateFile(
 	void *hSessionHandle,
 	unsigned char *pucFileName,
-	unsigned int uiNameLen,
+	unsigned int uiNameLen, /* max 128-byte */
 	unsigned int uiFileSize);
 
 int SDF_ReadFile(
@@ -488,7 +484,6 @@ int SDF_DeleteFile(
 	void *hSessionHandle,
 	unsigned char *pucFileName,
 	unsigned int uiNameLen);
-
 
 #define SDR_OK			0x0
 #define SDR_BASE		0x01000000
@@ -513,6 +508,16 @@ int SDF_DeleteFile(
 #define SDR_FILEOFSERR		(SDR_BASE + 0x00000013)
 #define SDR_KEYTYPEERR		(SDR_BASE + 0x00000014)
 #define SDR_KEYERR		(SDR_BASE + 0x00000015)
+#define SDR_ENCDATAERR		(SDR_BASE + 0x00000016)
+#define SDR_RANDERR		(SDR_BASE + 0x00000017)
+#define SDR_PRKRERR		(SDR_BASE + 0x00000018)
+#define SDR_MACERR		(SDR_BASE + 0x00000019)
+#define SDR_FILEEXSITS		(SDR_BASE + 0x0000001A)
+#define SDR_FILEWERR		(SDR_BASE + 0x0000001B)
+#define SDR_NOBUFFER		(SDR_BASE + 0x0000001C)
+#define SDR_INARGERR		(SDR_BASE + 0x0000001D)
+#define SDR_OUTARGERR		(SDR_BASE + 0x0000001E)
+
 
 #ifdef __cplusplus
 }

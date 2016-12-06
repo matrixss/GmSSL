@@ -53,7 +53,7 @@
 #include <openssl/asn1.h>
 #include <openssl/asn1t.h>
 #include <openssl/paillier.h>
-
+#include "pai_lcl.h"
 
 static int paillier_cb(int operation, ASN1_VALUE **pval,
 	const ASN1_ITEM *it, void *exarg)

@@ -62,14 +62,7 @@ extern "C" {
 #endif
 
 
-typedef struct paillier_st {
-	int bits;
-	BIGNUM *n;		/* public key */
-	BIGNUM *lambda;		/* private key, lambda(n) = lcm(p-1, q-1) */
-	BIGNUM *n_squared;	/* online */
-	BIGNUM *n_plusone;	/* online */
-	BIGNUM *x;		/* online */
-} PAILLIER;
+typedef struct paillier_st PAILLIER;
 
 PAILLIER *PAILLIER_new(void);
 void PAILLIER_free(PAILLIER *key);

@@ -10,7 +10,7 @@
  */
 
 /* Serialized OID's */
-static const unsigned char so[7401] = {
+static const unsigned char so[7417] = {
     0x2A,0x86,0x48,0x86,0xF7,0x0D,                 /* [    0] OBJ_rsadsi */
     0x2A,0x86,0x48,0x86,0xF7,0x0D,0x01,            /* [    6] OBJ_pkcs */
     0x2A,0x86,0x48,0x86,0xF7,0x0D,0x02,0x02,       /* [   13] OBJ_md2 */
@@ -1044,9 +1044,11 @@ static const unsigned char so[7401] = {
     0x2A,0x86,0x48,0x01,0x86,0xFD,0x1E,0x01,0x03,0x02,  /* [ 7370] OBJ_weil_pairing */
     0x2A,0x86,0x48,0x01,0x86,0xFD,0x1E,0x01,0x03,0x03,  /* [ 7380] OBJ_ate_pairing */
     0x2A,0x86,0x48,0x01,0x86,0xFD,0x1E,0x01,0x03,0x04,  /* [ 7390] OBJ_r_ate_pairing */
+    0x2A,0x81,0x1C,0xCF,0x55,0x01,0x68,0x0C,       /* [ 7400] OBJ_sms4_wrap_pad */
+    0x2A,0x81,0x1C,0xCF,0x55,0x01,0x68,0x64,       /* [ 7408] OBJ_sms4_ocb */
 };
 
-#define NUM_NID 1145
+#define NUM_NID 1147
 static const ASN1_OBJECT nid_objs[NUM_NID] = {
     {"UNDEF", "undefined", NID_undef},
     {"rsadsi", "RSA Data Security, Inc.", NID_rsadsi, 6, &so[0]},
@@ -2193,9 +2195,11 @@ static const ASN1_OBJECT nid_objs[NUM_NID] = {
     {"weil-pairing", "weil-pairing", NID_weil_pairing, 10, &so[7370]},
     {"ate-pairing", "ate-pairing", NID_ate_pairing, 10, &so[7380]},
     {"r-ate-pairing", "r-ate-pairing", NID_r_ate_pairing, 10, &so[7390]},
+    {"SMS4-WRAP-PAD", "sms4-wrap-pad", NID_sms4_wrap_pad, 8, &so[7400]},
+    {"SMS4-OCB", "sms4-ocb", NID_sms4_ocb, 8, &so[7408]},
 };
 
-#define NUM_SN 1136
+#define NUM_SN 1138
 static const unsigned int sn_objs[NUM_SN] = {
      364,    /* "AD_DVCS" */
      419,    /* "AES-128-CBC" */
@@ -2447,8 +2451,10 @@ static const unsigned int sn_objs[NUM_SN] = {
     1106,    /* "SMS4-CTR" */
     1100,    /* "SMS4-ECB" */
     1107,    /* "SMS4-GCM" */
+    1146,    /* "SMS4-OCB" */
     1102,    /* "SMS4-OFB" */
     1110,    /* "SMS4-WRAP" */
+    1145,    /* "SMS4-WRAP-PAD" */
     1109,    /* "SMS4-XTS" */
      100,    /* "SN" */
     1006,    /* "SNILS" */
@@ -3335,7 +3341,7 @@ static const unsigned int sn_objs[NUM_SN] = {
     1069,    /* "xor-in-ecies" */
 };
 
-#define NUM_LN 1136
+#define NUM_LN 1138
 static const unsigned int ln_objs[NUM_LN] = {
      363,    /* "AD Time Stamping" */
      405,    /* "ANSI X9.62" */
@@ -4407,8 +4413,10 @@ static const unsigned int ln_objs[NUM_LN] = {
     1106,    /* "sms4-ctr" */
     1100,    /* "sms4-ecb" */
     1107,    /* "sms4-gcm" */
+    1146,    /* "sms4-ocb" */
     1102,    /* "sms4-ofb" */
     1110,    /* "sms4-wrap" */
+    1145,    /* "sms4-wrap-pad" */
     1109,    /* "sms4-xts" */
     1095,    /* "ssf33-cbc" */
     1097,    /* "ssf33-cfb" */
@@ -4475,7 +4483,7 @@ static const unsigned int ln_objs[NUM_LN] = {
     1132,    /* "zuc" */
 };
 
-#define NUM_OBJ 1039
+#define NUM_OBJ 1041
 static const unsigned int obj_objs[NUM_OBJ] = {
        0,    /* OBJ_undef                        0 */
      181,    /* OBJ_iso                          1 */
@@ -4971,6 +4979,8 @@ static const unsigned int obj_objs[NUM_OBJ] = {
     1108,    /* OBJ_sms4_ccm                     1 2 156 10197 1 104 9 */
     1109,    /* OBJ_sms4_xts                     1 2 156 10197 1 104 10 */
     1110,    /* OBJ_sms4_wrap                    1 2 156 10197 1 104 11 */
+    1145,    /* OBJ_sms4_wrap_pad                1 2 156 10197 1 104 12 */
+    1146,    /* OBJ_sms4_ocb                     1 2 156 10197 1 104 100 */
     1111,    /* OBJ_sm5                          1 2 156 10197 1 201 */
     1112,    /* OBJ_sm2p256v1                    1 2 156 10197 1 301 */
     1118,    /* OBJ_id_sm9PublicKey              1 2 156 10197 1 302 */

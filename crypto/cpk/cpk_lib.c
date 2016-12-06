@@ -62,6 +62,8 @@
 #include "../dsa/dsa_locl.h"
 #include "../x509/x509_lcl.h"
 
+#define ASN1_STRING_data(a) ((a)->data)
+
 static DSA *X509_ALGOR_get1_DSA(X509_ALGOR *algor);
 static int extract_dsa_params(CPK_MASTER_SECRET *master, CPK_PUBLIC_PARAMS *param);
 static DSA *extract_dsa_priv_key(CPK_MASTER_SECRET *master, const char *id);
@@ -170,7 +172,7 @@ CPK_MASTER_SECRET *CPK_MASTER_SECRET_create(const char *domain_id,
 		CPKerr(CPK_F_CPK_MASTER_SECRET_CREATE, ERR_R_ASN1_LIB);
 		goto err;
 	}
-	bn_ptr = ASN1_STRING_data(master->secret_factors);
+	bn_ptr = master->secret_factors->data;
 	memset(bn_ptr, 0, ASN1_STRING_length(master->secret_factors));
 
 	if (!(bn = BN_new())) {

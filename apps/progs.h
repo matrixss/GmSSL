@@ -218,6 +218,7 @@ static FUNCTION functions[] = {
 #ifndef OPENSSL_NO_GOST
     { FT_md, "gost", dgst_main},
 #endif
+    { FT_md, "sm3", dgst_main},
     { FT_md, "sha1", dgst_main},
     { FT_md, "sha224", dgst_main},
     { FT_md, "sha256", dgst_main},
@@ -241,6 +242,8 @@ static FUNCTION functions[] = {
     { FT_cipher, "aes-192-ecb", enc_main, enc_options },
     { FT_cipher, "aes-256-cbc", enc_main, enc_options },
     { FT_cipher, "aes-256-ecb", enc_main, enc_options },
+    { FT_cipher, "sms4-cbc", enc_main, enc_options },
+    { FT_cipher, "sms4-ecb", enc_main, enc_options },
 #ifndef OPENSSL_NO_CAMELLIA
     { FT_cipher, "camellia-128-cbc", enc_main, enc_options },
 #endif

@@ -145,43 +145,67 @@ int BN_GFP2_one(BN_GFP2 *a)
 	return 1;
 }
 
+/* return 1 on success, so dont use !BN_GFP2_is_zero() to check return value */
 int BN_GFP2_is_zero(const BN_GFP2 *a)
 {
-	/* do we need return -1 ? */
 	if (!a || !a->a0 || !a->a1) {
 		BNerr(BN_F_BN_GFP2_IS_ZERO, ERR_R_PASSED_NULL_PARAMETER);
-		return 0;
+		return -1;
 	}
 
 	return (BN_is_zero(a->a0) && BN_is_zero(a->a1));
 }
 
+/*
+ * can we compare values on F_p^2 ?
+ */
 int BN_GFP2_cmp(const BN_GFP2 *a, const BN_GFP2 *b)
 {
 	if (!a || !b || !a->a0 || !a->a1 || !b->a0 || !b->a1) {
 		BNerr(BN_F_BN_GFP2_CMP, ERR_R_PASSED_NULL_PARAMETER);
-		return 0;
+		return -1;
 	}
+
 	return ((BN_cmp(a->a0, b->a0) == 0) && (BN_cmp(a->a1, b->a1) == 0));
 }
 
-int BN_GF2P_add(BN_GFP2 *r, const BN_GFP2 *a, const BN_GFP2 *b,
+int BN_GFP2_add(BN_GFP2 *r, const BN_GFP2 *a, const BN_GFP2 *b,
 	const BIGNUM *p, BN_CTX *ctx)
 {
+	if (!a || !b || !a->a0 || !a->a1 || !b->a0 || !b->a1 || !p || !ctx) {
+		BNerr(BN_F_BN_GFP2_ADD, ERR_R_PASSED_NULL_PARAMETER);
+		return 0;
+	}
+
 	if (!BN_mod_add(r->a0, a->a0, b->a0, p, ctx)) {
+		BNerr(BN_F_BN_GFP2_ADD, ERR_R_BN_LIB);
 		return 0;
 	}
 	if (!BN_mod_add(r->a1, a->a1, b->a1, p, ctx)) {
+		BNerr(BN_F_BN_GFP2_ADD, ERR_R_BN_LIB);
 		return 0;
 	}
+
 	return 1;
 }
 
 int BN_GFP2_sub(BN_GFP2 *r, const BN_GFP2 *a, const BN_GFP2 *b,
 	const BIGNUM *p, BN_CTX *ctx)
 {
-	BN_mod_sub(r->a0, a->a0, b->a0, p, ctx);
-	BN_mod_sub(r->a1, a->a1, b->a1, p, ctx);
+	if (!a || !b || !a->a0 || !a->a1 || !b->a0 || !b->a1 || !p || !ctx) {
+		BNerr(BN_F_BN_GFP2_SUB, ERR_R_PASSED_NULL_PARAMETER);
+		return 0;
+	}
+
+	if (!BN_mod_sub(r->a0, a->a0, b->a0, p, ctx)) {
+		BNerr(BN_F_BN_GFP2_SUB, ERR_R_BN_LIB);
+		return 0;
+	}
+	if (!BN_mod_sub(r->a1, a->a1, b->a1, p, ctx)) {
+		BNerr(BN_F_BN_GFP2_SUB, ERR_R_BN_LIB);
+		return 0;
+	}
+
 	return 1;
 }
 
@@ -313,9 +337,11 @@ int BN_GFP2_div(BN_GFP2 *r, const BN_GFP2 *a, const BN_GFP2 *b, const BIGNUM *p,
 	return 1;
 }
 
+/* need a fast implementation. check if k is solinas */
 int BN_GFP2_exp(BN_GFP2 *r, const BN_GFP2 *a, const BIGNUM *k, const BIGNUM *p,
 	BN_CTX *ctx)
 {
+
 	return 0;
 }
 
@@ -357,7 +383,30 @@ int BN_GFP2_mul_bn(BN_GFP2 *r, const BN_GFP2 *a, const BIGNUM *b,
 int BN_GFP2_div_bn(BN_GFP2 *r, const BN_GFP2 *a, const BIGNUM *b,
 	const BIGNUM *p, BN_CTX *ctx)
 {
-	return 0;
+	int ret = 0;
+	BIGNUM *binv;
+
+	if (!(binv = BN_CTX_get(ctx))) {
+		BNerr(BN_F_BN_GFP2_DIV_BN, ERR_R_MALLOC_FAILURE);
+		goto end;
+	}
+	if (!BN_mod_inverse(binv, b, p, ctx)) {
+		BNerr(BN_F_BN_GFP2_DIV_BN, ERR_R_BN_LIB);
+		goto end;
+	}
+	if (!BN_mod_mul(r->a0, a->a0, binv, p, ctx)) {
+		BNerr(BN_F_BN_GFP2_DIV_BN, ERR_R_BN_LIB);
+		goto end;
+	}
+	if (!BN_mod_mul(r->a1, a->a1, binv, p, ctx)) {
+		BNerr(BN_F_BN_GFP2_DIV_BN, ERR_R_BN_LIB);
+		goto end;
+	}
+
+	ret = 1;
+end:
+	BN_CTX_end(ctx);
+	return ret;
 }
 
 int BN_GFP2_canonical(const BN_GFP2 *a, unsigned char *out, size_t *outlen,
@@ -409,10 +458,40 @@ int BN_GFP2_canonical(const BN_GFP2 *a, unsigned char *out, size_t *outlen,
 
 int BN_bn2gfp2(const BIGNUM *bn, BN_GFP2 *gfp2, const BIGNUM *p, BN_CTX *ctx)
 {
-	return 0;
+	int ret = 0;
+	BIGNUM *a;
+
+	if (!(a = BN_CTX_get(ctx))) {
+		goto end;
+	}
+
+	BN_one(a);
+	if (!BN_lshift(a, a, BN_num_bytes(p)*8)) {
+		goto end;
+	}
+
+	if (!BN_rshift(gfp2->a1, bn, BN_num_bytes(p)*8)) {
+		goto end;
+	}
+	if (!BN_mod(gfp2->a0, bn, a, ctx)) {
+		goto end;
+	}
+
+	ret = 1;
+end:
+	BN_CTX_end(ctx);
+	return ret;
 }
 
+/* return (a0 + a1 << 2^n), n = log_2(p), n % 8 == 0 */
 int BN_gfp22bn(const BN_GFP2 *gfp2, BIGNUM *bn, const BIGNUM *p, BN_CTX *ctx)
 {
-	return 0;
+	if (!BN_lshift(bn, gfp2->a1, BN_num_bytes(p) * 8)) {
+		return 0;
+	}
+	if (!BN_add(bn, bn, gfp2->a0)) {
+		return 0;
+	}
+	return 1;
 }
+

@@ -250,6 +250,12 @@ int tls_construct_change_cipher_spec(SSL *s)
     return 1;
 }
 
+/* for gmssl, the client cert chain should be the dual-certificate,
+ * signing and encryption. And for identity-based schemes, it should be
+ * identity based values
+ * As the upper layer API will support the caller to set the cert chain,
+ * can we just let the application to set up the dual-certificate?
+ */
 unsigned long ssl3_output_cert_chain(SSL *s, CERT_PKEY *cpk)
 {
     unsigned char *p;
@@ -523,6 +529,8 @@ int tls_get_message_body(SSL *s, unsigned long *len)
     return 1;
 }
 
+//gmssl: this did not check the key usage of x509.
+//we can use this to return different idx for different usage
 int ssl_cert_type(const X509 *x, const EVP_PKEY *pk)
 {
     if (pk == NULL && (pk = X509_get0_pubkey(x)) == NULL)

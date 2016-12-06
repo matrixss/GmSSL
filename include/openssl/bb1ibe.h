@@ -69,43 +69,11 @@
 extern "C" {
 #endif
 
-typedef struct BB1PublicParameters_st {
-	long version;
-	ASN1_OBJECT *curve;
-	BIGNUM *p;
-	BIGNUM *q;
-	FpPoint *pointP;
-	FpPoint *pointP1;
-	FpPoint *pointP2;
-	FpPoint *pointP3;
-	FpPoint *v;
-	ASN1_OBJECT *hashfcn;
-} BB1PublicParameters;
-DECLARE_ASN1_FUNCTIONS(BB1PublicParameters)
 
-typedef struct BB1MasterSecret_st {
-	long version;
-	BIGNUM *alpha;
-	BIGNUM *beta;
-	BIGNUM *gamma;
-} BB1MasterSecret;
-DECLARE_ASN1_FUNCTIONS(BB1MasterSecret)
-
-typedef struct BB1PrivateKeyBlock_st {
-	long version;
-	FpPoint *pointD0;
-	FpPoint *pointD1;
-} BB1PrivateKeyBlock;
-DECLARE_ASN1_FUNCTIONS(BB1PrivateKeyBlock)
-
-typedef struct BB1CiphertextBlock_st {
-	long version;
-	FpPoint *pointChi0;
-	FpPoint *pointChi1;
-	BIGNUM *nu;
-	ASN1_OCTET_STRING *y;
-} BB1CiphertextBlock;
-DECLARE_ASN1_FUNCTIONS(BB1CiphertextBlock)
+typedef struct BB1PublicParameters_st BB1PublicParameters;
+typedef struct BB1MasterSecret_st BB1MasterSecret;
+typedef struct BB1PrivateKeyBlock_st BB1PrivateKeyBlock;
+typedef struct BB1CiphertextBlock_st BB1CiphertextBlock;
 
 
 int BB1IBE_setup(const EC_GROUP *group, const EVP_MD *md,
@@ -127,6 +95,10 @@ int BB1IBE_decrypt(BB1PublicParameters *mpk,
 	unsigned char *out, size_t *outlen,
 	BB1PrivateKeyBlock *sk);
 
+DECLARE_ASN1_FUNCTIONS(BB1MasterSecret)
+DECLARE_ASN1_FUNCTIONS(BB1PublicParameters)
+DECLARE_ASN1_FUNCTIONS(BB1PrivateKeyBlock)
+DECLARE_ASN1_FUNCTIONS(BB1CiphertextBlock)
 
 #ifdef __cplusplus
 }

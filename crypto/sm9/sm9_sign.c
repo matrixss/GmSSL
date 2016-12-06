@@ -247,15 +247,15 @@ int SM9_do_verify_type1curve(SM9PublicParameters *mpk,
 
 	if (!mpk || !dgst || dgstlen <= 0 || !sig || !id || idlen <= 0) {
 		SM9err(SM9_F_SM9_DO_VERIFY_TYPE1CURVE, ERR_R_PASSED_NULL_PARAMETER);
-		goto end;
+		return 0;
 	}
 	if (dgstlen > EVP_MAX_MD_SIZE) {
 		SM9err(SM9_F_SM9_DO_VERIFY_TYPE1CURVE, SM9_R_INVALID_DIGEST);
-		return NULL;
+		return 0;
 	}
 	if (idlen > SM9_MAX_ID_LENGTH) {
 		SM9err(SM9_F_SM9_DO_VERIFY_TYPE1CURVE, SM9_R_INVALID_ID);
-		return NULL;
+		return 0;
 	}
 
 	/* BN_CTX */
@@ -296,7 +296,7 @@ int SM9_do_verify_type1curve(SM9PublicParameters *mpk,
 
 	/* check sig->h in [1, mpk->order - 1] */
 	//FIXME: do we need to check sig->h > 0 ?
-	if (BN_is_zero(sig->h) || BN_cmp(sig, mpk->order) >= 0) {
+	if (BN_is_zero(sig->h) || BN_cmp(sig->h, mpk->order) >= 0) {
 		SM9err(SM9_F_SM9_DO_VERIFY_TYPE1CURVE, SM9_R_INVALID_SIGNATURE);
 		goto end;
 	}
@@ -397,7 +397,6 @@ end:
 	return ret;
 }
 
-
 int SM9_do_verify(SM9PublicParameters *mpk,
 	const unsigned char *dgst, size_t dgstlen,
 	const SM9Signature *sig, const char *id, size_t idlen)
@@ -419,13 +418,88 @@ int SM9_sign(SM9PublicParameters *mpk, const unsigned char *dgst,
 	size_t dgstlen, unsigned char *sig, size_t *siglen,
 	SM9PrivateKey *sk)
 {
-	return 0;
+	int ret = 0;
+	SM9Signature *sigobj = NULL;
+	unsigned char *p;
+	size_t sigsiz;
+
+	if (!mpk || !dgst || !siglen || !sk) {
+		SM9err(SM9_F_SM9_SIGN, ERR_R_PASSED_NULL_PARAMETER);
+		return 0;
+	}
+	if (dgstlen <= 0 || dgstlen > EVP_MAX_MD_SIZE) {
+		SM9err(SM9_F_SM9_SIGN, SM9_R_INVALID_DIGEST_LENGTH);
+		return 0;
+	}
+
+	/* compute output signature size */
+	if (!SM9PublicParmeters_get_signature_size(mpk, &sigsiz)) {
+		SM9err(SM9_F_SM9_SIGN, ERR_R_SM9_LIB);
+		return 0;
+	}
+
+	if (!sig) {
+		*siglen = sigsiz;
+		return 1;
+	}
+	if (*siglen < sigsiz) {
+		SM9err(SM9_F_SM9_SIGN, SM9_R_BUFFER_TOO_SMALL);
+		return 0;
+	}
+
+	/* do_sign */
+	if (!(sigobj = SM9_do_sign(mpk, dgst, dgstlen, sk))) {
+		SM9err(SM9_F_SM9_SIGN, ERR_R_SM9_LIB);
+		return 0;
+	}
+
+	p = &sig;
+	if (i2d_SM9Signature(sigobj, &p) < 0) {
+		SM9err(SM9_F_SM9_SIGN, ERR_R_SM9_LIB);
+		goto end;
+	}
+
+	*siglen = p - sig;
+	ret = 1;
+
+end:
+	SM9Signature_free(sigobj);
+	return ret;
 }
+
 
 int SM9_verify(SM9PublicParameters *mpk, const unsigned char *dgst,
 	size_t dgstlen, const unsigned char *sig, size_t siglen,
 	const char *id, size_t idlen)
 {
+	int ret = -1;
+	SM9Signature *sigobj = NULL;
+	const unsigned char *p;
+
+	if (!mpk || !dgst || !sig || !id) {
+		SM9err(SM9_F_SM9_VERIFY, ERR_R_PASSED_NULL_PARAMETER);
+		return 0;
+	}
+	if (dgstlen <= 0 || dgstlen > EVP_MAX_MD_SIZE) {
+		SM9err(SM9_F_SM9_VERIFY, SM9_R_INVALID_DIGEST_LENGTH);
+		return 0;
+	}
+	if (idlen <= 0 || idlen > SM9_MAX_ID_LENGTH || strlen(id) != idlen) {
+		SM9err(SM9_F_SM9_VERIFY, SM9_R_INVALID_ID_LENGTH);
+		return 0;
+	}
+
+	p = &sig;
+	if (!(sigobj = d2i_SM9Signature(NULL, &p, siglen))) {
+		SM9err(SM9_F_SM9_VERIFY, ERR_R_SM9_LIB);
+		return 0;
+	}
+
+	ret = SM9_do_verify(mpk, dgst, dgstlen, sigobj, id, idlen);
+
+
+end:
+	SM9Signature_free(sigobj);
 	return 0;
 }
 

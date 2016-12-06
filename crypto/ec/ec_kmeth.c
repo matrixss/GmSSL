@@ -9,6 +9,7 @@
 
 #include <string.h>
 #include <openssl/ec.h>
+#include <openssl/ecies.h>
 #include <openssl/engine.h>
 #include <openssl/err.h>
 #include "ec_lcl.h"
@@ -24,7 +25,13 @@ static const EC_KEY_METHOD openssl_ec_key_method = {
     ossl_ecdsa_sign_setup,
     ossl_ecdsa_sign_sig,
     ossl_ecdsa_verify,
-    ossl_ecdsa_verify_sig
+    ossl_ecdsa_verify_sig,
+#ifndef NO_GMSSL
+    ECIES_encrypt,
+    ECIES_do_encrypt,
+    ECIES_decrypt,
+    ECIES_do_decrypt,
+#endif
 };
 
 static const EC_KEY_METHOD *default_ec_key_meth = &openssl_ec_key_method;
@@ -315,3 +322,77 @@ void EC_KEY_METHOD_get_verify(EC_KEY_METHOD *meth,
     if (pverify_sig != NULL)
         *pverify_sig = meth->verify_sig;
 }
+
+#ifndef NO_GMSSL
+void EC_KEY_METHOD_set_encrypt(EC_KEY_METHOD *meth,
+                               int (*encrypt)(const void *params,
+                                              const unsigned char *in,
+                                              size_t inlen,
+                                              unsigned char *out,
+                                              size_t *outlen,
+                                              EC_KEY *ec_key),
+                               ECIES_CIPHERTEXT_VALUE *
+                                    (*do_encrypt)(const void *params,
+                                                  const unsigned char *in,
+                                                  size_t inlen,
+                                                  EC_KEY *ec_key))
+{
+    meth->encrypt = encrypt;
+    meth->do_encrypt = do_encrypt;
+}
+
+void EC_KEY_METHOD_set_decrypt(EC_KEY_METHOD *meth,
+                               int (*decrypt)(const void *params,
+                                              const unsigned char *in,
+                                              size_t inlen,
+                                              unsigned char *out,
+                                              size_t *outlen,
+                                              EC_KEY *ec_key),
+                               int (*do_decrypt)(const void *params,
+                                                 const ECIES_CIPHERTEXT_VALUE *in,
+                                                 unsigned char *out,
+                                                 size_t *outlen,
+                                                 EC_KEY *ec_key))
+{
+    meth->decrypt = decrypt;
+    meth->do_decrypt = do_decrypt;
+}
+
+void EC_KEY_METHOD_get_encrypt(EC_KEY_METHOD *meth,
+                               int (**pencrypt)(const void *params,
+                                                const unsigned char *in,
+                                                size_t inlen,
+                                                unsigned char *out,
+                                                size_t *outlen,
+                                                EC_KEY *ec_key),
+                               ECIES_CIPHERTEXT_VALUE *
+                                   (**pdo_encrypt)(const void *params,
+                                                   const unsigned char *in,
+                                                   size_t inlen,
+                                                   EC_KEY *ec_key))
+{
+    if (pencrypt != NULL)
+        *pencrypt = meth->encrypt;
+    if (pdo_encrypt != NULL)
+        *pdo_encrypt = meth->do_encrypt;
+}
+
+void EC_KEY_METHOD_get_decrypt(EC_KEY_METHOD *meth,
+                               int (**pdecrypt)(const void *params,
+                                                const unsigned char *in,
+                                                size_t inlen,
+                                                unsigned char *out,
+                                                size_t *outlen,
+                                                EC_KEY *ec_key),
+                               int (**pdo_decrypt)(const void *params,
+                                                   const ECIES_CIPHERTEXT_VALUE *in,
+                                                   unsigned char *out,
+                                                   size_t *outlen,
+                                                   EC_KEY *ec_key))
+{
+    if (pdecrypt != NULL)
+        *pdecrypt = meth->decrypt;
+    if (pdo_decrypt != NULL)
+        *pdo_decrypt = meth->do_decrypt;
+}
+#endif /* NO_GMSSL */

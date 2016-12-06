@@ -69,37 +69,10 @@
 extern "C" {
 #endif
 
-typedef struct BFPublicParameters_st {
-	long version;
-	ASN1_OBJECT *curve;
-	BIGNUM *p;
-	BIGNUM *q;
-	FpPoint *pointP;
-	FpPoint *pointPpub;
-	ASN1_OBJECT *hashfcn;
-} BFPublicParameters;
-DECLARE_ASN1_FUNCTIONS(BFPublicParameters)
-
-typedef struct BFMasterSecret_st {
-	long version;
-	BIGNUM *masterSecret;
-} BFMasterSecret;
-DECLARE_ASN1_FUNCTIONS(BFMasterSecret)
-
-typedef struct BFPrivateKeyBlock_st {
-	long version;
-	FpPoint *privateKey;
-} BFPrivateKeyBlock;
-DECLARE_ASN1_FUNCTIONS(BFPrivateKeyBlock)
-
-typedef struct BFCiphertextBlock_st {
-	long version;
-	FpPoint *u;
-	ASN1_OCTET_STRING *v;
-	ASN1_OCTET_STRING *w;
-} BFCiphertextBlock;
-DECLARE_ASN1_FUNCTIONS(BFCiphertextBlock)
-
+typedef struct BFPublicParameters_st BFPublicParameters;
+typedef struct BFMasterSecret_st BFMasterSecret;
+typedef struct BFPrivateKeyBlock_st BFPrivateKeyBlock;
+typedef struct BFCiphertextBlock_st BFCiphertextBlock;
 
 int BFIBE_setup(const EC_GROUP *group, const EVP_MD *md,
 	BFPublicParameters **mpk, BFMasterSecret **msk);
@@ -120,6 +93,11 @@ int BFIBE_decrypt(BFPublicParameters *mpk,
 	const unsigned char *in, size_t inlen,
 	unsigned char *out, size_t *outlen,
 	BFPrivateKeyBlock *sk);
+
+DECLARE_ASN1_FUNCTIONS(BFPublicParameters)
+DECLARE_ASN1_FUNCTIONS(BFMasterSecret)
+DECLARE_ASN1_FUNCTIONS(BFPrivateKeyBlock)
+DECLARE_ASN1_FUNCTIONS(BFCiphertextBlock)
 
 
 #ifdef __cplusplus

@@ -58,7 +58,7 @@
 #include <openssl/hmac.h>
 #include <openssl/sm3.h>
 
-static char *test[] = {
+static char *testhex[] = {
 	/* 0 "abc" */
 	"616263",
 	/* 1 "abcd" 16 times */
@@ -120,7 +120,7 @@ static char *test[] = {
 	"0199BBF11AC95A0EA34BBD00CA50B93EC24ACB68335D20BA5DCFE3B33BDBD2B62D",
 };
 
-static char *ret[] = {
+static char *dgsthex[] = {
 	"66c7f0f462eeedd9d1f2d46bdc10e4e24167c4875cf2f7a2297da02b8f4ba8e0",
 	"debe9ff92275b8a138604889c18e5a4d6fdb70e5387e5765293dcba39c0c5732",
 	"F4A38489E32B45B6F876E3AC2168CA392362DC8F23459C1D1146FC3DBFB7BC9A",
@@ -131,22 +131,49 @@ static char *ret[] = {
 	"557BAD30E183559AEEC3B2256E1C7C11F870D22B165D015ACF9465B09B87B527",
 };
 
-static void hex2buf(const char *hex, unsigned char *buf, size_t *len)
+int sm3evptest(void)
 {
+	int ret = 0;
+	unsigned char *testbuf = NULL;
+	unsigned char *dgstbuf = NULL;
+	long testbuflen, dgstbuflen;
+	unsigned char dgst[EVP_MAX_MD_SIZE];
+	unsigned int dgstlen;
 	int i;
-	int ret;
-	BIGNUM *bn = NULL;
-	OPENSSL_assert(buf && len);
-	OPENSSL_assert(strlen(hex) % 2 == 0);
-	OPENSSL_assert(*len >= strlen(hex)/2);
-	*len = strlen(hex)/2;
-	BN_hex2bn(&bn, hex);
-	OPENSSL_assert(bn);
-	memset(buf, 0, *len);
-	BN_bn2bin(bn, buf + *len - BN_num_bytes(bn));
-}
 
-int main(int argc, char **argv)
+	for (i = 0; i < sizeof(testhex)/sizeof(testhex[0]); i++) {
+		if (!(testbuf = OPENSSL_hexstr2buf(testhex[i], &testbuflen))) {
+			goto end;
+		}
+		if (!(dgstbuf = OPENSSL_hexstr2buf(dgsthex[i], &dgstbuflen))) {
+			goto end;
+		}
+
+		dgstlen = sizeof(dgst);
+		if (!EVP_Digest(testbuf, testbuflen, dgst, &dgstlen, EVP_sm3(), NULL)) {
+			return 0;
+		}
+		if (memcmp(dgstbuf, dgst, dgstlen) == 0) {
+			printf("test %d passed\n", i+1);
+		} else {
+			printf("test %d failed\n", i+1);
+		}
+
+		OPENSSL_free(testbuf);
+		OPENSSL_free(dgstbuf);
+		testbuf = NULL;
+		dgstbuf = NULL;
+	}
+
+	ret = 1;
+
+end:
+	OPENSSL_free(testbuf);
+	OPENSSL_free(dgstbuf);
+	return ret;
+}
+/*
+int test0(int argc, char **argv)
 {
 	int i;
 	int j;
@@ -188,4 +215,10 @@ int main(int argc, char **argv)
 end:
 	return 0;
 }
+*/
 
+int main(int argc, char **argv)
+{
+	sm3evptest();
+	return 0;
+}

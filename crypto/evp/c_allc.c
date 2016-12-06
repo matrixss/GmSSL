@@ -226,7 +226,12 @@ void openssl_add_all_ciphers_int(void)
     EVP_add_cipher(EVP_sms4_cfb8());
     EVP_add_cipher(EVP_sms4_ofb());
     EVP_add_cipher(EVP_sms4_ctr());
+    EVP_add_cipher(EVP_sms4_ccm());
+    EVP_add_cipher(EVP_sms4_gcm());
+    EVP_add_cipher(EVP_sms4_ocb());
+    EVP_add_cipher(EVP_sms4_xts());
     EVP_add_cipher(EVP_sms4_wrap());
+    EVP_add_cipher(EVP_sms4_wrap_pad());
     EVP_add_cipher_alias(SN_sms4_cbc,"SMS4");
     EVP_add_cipher_alias(SN_sms4_cbc,"sms4");
     EVP_add_cipher(EVP_zuc());

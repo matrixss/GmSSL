@@ -51,6 +51,7 @@
 #include <openssl/ec.h>
 #include <openssl/err.h>
 #include <openssl/objects.h>
+#include <openssl/bn_hash.h>
 
 /* currently the EC_POINT_hash2point only support type1curve! */
 int EC_POINT_hash2point(const EC_GROUP *group, const EVP_MD *md,

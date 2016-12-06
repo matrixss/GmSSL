@@ -189,8 +189,10 @@ int ERR_load_SM9_strings(void);
 # define SM9_R_INVALID_CIPHERTEXT                         114
 # define SM9_R_INVALID_CURVE                              103
 # define SM9_R_INVALID_DIGEST                             111
+# define SM9_R_INVALID_DIGEST_LENGTH                      122
 # define SM9_R_INVALID_ENCPARAMETERS                      121
 # define SM9_R_INVALID_ID                                 108
+# define SM9_R_INVALID_ID_LENGTH                          123
 # define SM9_R_INVALID_INPUT                              115
 # define SM9_R_INVALID_KEY_LENGTH                         118
 # define SM9_R_INVALID_MD                                 109

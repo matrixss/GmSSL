@@ -1,4 +1,3 @@
-/* crypto/skf/skf_lcl.h */
 /* ====================================================================
  * Copyright (c) 2016 The GmSSL Project.  All rights reserved.
  *
@@ -46,11 +45,10 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  * ====================================================================
- *
  */
 
-#ifndef HEADER_SKF_LCL_H
-#define HEADER_SKF_LCL_H
+#ifndef HEADER_GMAPI_LCL_H
+#define HEADER_GMAPI_LCL_H
 
 #include <openssl/evp.h>
 #include <openssl/cmac.h>
@@ -65,6 +63,27 @@ extern "C" {
 #define SKF_MAC_HANDLE		2
 #define SKF_KEY_HANDLE		10
 #define SKF_CIPHER_HANDLE	11
+
+
+typedef struct {
+	CBCMAC_CTX *ctx;
+	int inited;
+} SAF_MAC_CTX;
+
+typedef struct {
+	CBCMAC_CTX *cbcmac_ctx;
+	EVP_CIPHER_CTX *cipher_ctx;
+	unsigned char *key;
+	unsigned int keylen;
+	const EVP_CIPHER *cipher;
+} SAF_KEY_HANDLE;
+
+
+
+typedef struct {
+	int err_no;
+	char *err_str;
+} GMAPI_ERRSTR;
 
 struct SKF_HANDLE {
 	unsigned int magic;
@@ -88,8 +107,6 @@ CBCMAC_CTX *SKF_HANDLE_get_cbcmac_ctx(HANDLE hMac);
 const EVP_CIPHER *SKF_HANDLE_get_cipher(HANDLE hKey, BLOCKCIPHERPARAM *param);
 EVP_CIPHER_CTX *SKF_HANDLE_get_cipher_ctx(HANDLE hKey);
 unsigned char *SKF_HANDLE_get_key(HANDLE hKey);
-
-
 
 
 #ifdef  __cplusplus

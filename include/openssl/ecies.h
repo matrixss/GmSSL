@@ -154,12 +154,10 @@ int ECIES_decrypt(const ECIES_PARAMS *param,
 	const unsigned char *in, size_t inlen,
 	unsigned char *out, size_t *outlen, EC_KEY *ec_key);
 
-/* Begin Stable APIs */
 int ECIES_encrypt_with_recommended(const unsigned char *in, size_t inlen,
 	unsigned char *out, size_t *outlen, EC_KEY *ec_key);
 int ECIES_decrypt_with_recommended(const unsigned char *in, size_t inlen,
 	unsigned char *out, size_t *outlen, EC_KEY *ec_key);
-/* End Stable APIs */
 
 
 #ifdef __cplusplus

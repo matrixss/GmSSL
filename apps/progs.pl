@@ -98,7 +98,7 @@ my %md_disabler = (
     );
 foreach my $cmd (
 	"md2", "md4", "md5",
-	"gost",
+	"gost", "sm3",
 	"sha1", "sha224", "sha256", "sha384", "sha512",
 	"mdc2", "rmd160", "blake2b512", "blake2s256"
 ) {
@@ -121,6 +121,7 @@ foreach my $cmd (
 	"aes-128-cbc", "aes-128-ecb",
 	"aes-192-cbc", "aes-192-ecb",
 	"aes-256-cbc", "aes-256-ecb",
+	"sms4-cbc", "sms4-ecb",
 	"camellia-128-cbc", "camellia-128-ecb",
 	"camellia-192-cbc", "camellia-192-ecb",
 	"camellia-256-cbc", "camellia-256-ecb",

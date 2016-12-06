@@ -58,6 +58,19 @@
 #include <openssl/bb1ibe.h>
 #include <openssl/pairing.h>
 
+
+struct BB1PublicParameters_st {
+	long version;
+	ASN1_OBJECT *curve;
+	BIGNUM *p;
+	BIGNUM *q;
+	FpPoint *pointP;
+	FpPoint *pointP1;
+	FpPoint *pointP2;
+	FpPoint *pointP3;
+	FpPoint *v;
+	ASN1_OBJECT *hashfcn;
+};
 ASN1_SEQUENCE(BB1PublicParameters) = {
 	ASN1_SIMPLE(BB1PublicParameters, version, LONG),
 	ASN1_SIMPLE(BB1PublicParameters, curve, ASN1_OBJECT),
@@ -73,6 +86,12 @@ ASN1_SEQUENCE(BB1PublicParameters) = {
 IMPLEMENT_ASN1_FUNCTIONS(BB1PublicParameters)
 IMPLEMENT_ASN1_DUP_FUNCTION(BB1PublicParameters)
 
+struct BB1MasterSecret_st {
+	long version;
+	BIGNUM *alpha;
+	BIGNUM *beta;
+	BIGNUM *gamma;
+};
 ASN1_SEQUENCE(BB1MasterSecret) = {
 	ASN1_SIMPLE(BB1MasterSecret, version, LONG),
 	ASN1_SIMPLE(BB1MasterSecret, alpha, BIGNUM),
@@ -82,6 +101,11 @@ ASN1_SEQUENCE(BB1MasterSecret) = {
 IMPLEMENT_ASN1_FUNCTIONS(BB1MasterSecret)
 IMPLEMENT_ASN1_DUP_FUNCTION(BB1MasterSecret)
 
+struct BB1PrivateKeyBlock_st {
+	long version;
+	FpPoint *pointD0;
+	FpPoint *pointD1;
+};
 ASN1_SEQUENCE(BB1PrivateKeyBlock) = {
 	ASN1_SIMPLE(BB1PrivateKeyBlock, version, LONG),
 	ASN1_SIMPLE(BB1PrivateKeyBlock, pointD0, FpPoint),
@@ -90,7 +114,14 @@ ASN1_SEQUENCE(BB1PrivateKeyBlock) = {
 IMPLEMENT_ASN1_FUNCTIONS(BB1PrivateKeyBlock)
 IMPLEMENT_ASN1_DUP_FUNCTION(BB1PrivateKeyBlock)
 
- ASN1_SEQUENCE(BB1CiphertextBlock) = {
+struct BB1CiphertextBlock_st {
+	long version;
+	FpPoint *pointChi0;
+	FpPoint *pointChi1;
+	BIGNUM *nu;
+	ASN1_OCTET_STRING *y;
+};
+ASN1_SEQUENCE(BB1CiphertextBlock) = {
 	ASN1_SIMPLE(BB1CiphertextBlock, version, LONG),
 	ASN1_SIMPLE(BB1CiphertextBlock, pointChi0, FpPoint),
 	ASN1_SIMPLE(BB1CiphertextBlock, pointChi1, FpPoint),
@@ -596,9 +627,7 @@ BB1CiphertextBlock *BB1IBE_do_encrypt(BB1PublicParameters *mpk,
 	unsigned char *wbuf = NULL;
 	size_t wbuflen;
 	unsigned char *cbuf = NULL;
-	size_t cbuflen;
 	const EVP_MD *md;
-	unsigned char *p;
 	int i;
 
 	if (!mpk || !in || inlen <= 0 || !id || idlen <= 0) {

@@ -100,9 +100,7 @@
 # define EVP_PKEY_CMAC   NID_cmac
 # define EVP_PKEY_TLS1_PRF NID_tls1_prf
 # define EVP_PKEY_HKDF   NID_hkdf
-# ifndef NO_GMSSL
 # define EVP_PKEY_CBCMAC NID_cbc_mac
-# endif
 
 #ifdef  __cplusplus
 extern "C" {
@@ -900,12 +898,26 @@ const EVP_CIPHER *EVP_sms4_cfb128(void);
 const EVP_CIPHER *EVP_sms4_ofb(void);
 const EVP_CIPHER *EVP_sms4_ctr(void);
 const EVP_CIPHER *EVP_sms4_gcm(void);
+const EVP_CIPHER *EVP_sms4_ccm(void);
+const EVP_CIPHER *EVP_sms4_ocb(void);
+const EVP_CIPHER *EVP_sms4_xts(void);
 const EVP_CIPHER *EVP_sms4_wrap(void);
+const EVP_CIPHER *EVP_sms4_wrap_pad(void);
 # define EVP_sm4_ecb EVP_sms4_ecb
 # define EVP_sm4_cbc EVP_sms4_cbc
 # define EVP_sm4_cfb EVP_sms4_cfb
 # define EVP_sm4_ofb EVP_sms4_ofb
 const EVP_CIPHER *EVP_zuc(void);
+const EVP_CIPHER *EVP_sm1_ecb(void);
+const EVP_CIPHER *EVP_sm1_cbc(void);
+const EVP_CIPHER *EVP_sm1_cfb128(void);
+#define EVP_sm1_cfb EVP_sm1_cfb128
+const EVP_CIPHER *EVP_sm1_ofb(void);
+const EVP_CIPHER *EVP_ssf33_ecb(void);
+const EVP_CIPHER *EVP_ssf33_cbc(void);
+const EVP_CIPHER *EVP_ssf33_cfb128(void);
+#define EVP_ssf33_cfb EVP_ssf33_cfb128
+const EVP_CIPHER *EVP_ssf33_ofb(void);
 # endif
 
 # if OPENSSL_API_COMPAT < 0x10100000L
@@ -1634,16 +1646,17 @@ int ERR_load_EVP_strings(void);
 # define EVP_R_PRIVATE_KEY_DECODE_ERROR                   145
 # define EVP_R_PRIVATE_KEY_ENCODE_ERROR                   146
 # define EVP_R_PUBLIC_KEY_NOT_RSA                         106
+# define EVP_R_RSA_PUBLIC_ENCRYPT_FAILED                  163
 # define EVP_R_UNKNOWN_CIPHER                             160
 # define EVP_R_UNKNOWN_DIGEST                             161
 # define EVP_R_UNKNOWN_OPTION                             169
 # define EVP_R_UNKNOWN_PBE_ALGORITHM                      121
-# define EVP_R_UNSUPPORTED_NUMBER_OF_ROUNDS               135
 # define EVP_R_UNSUPPORTED_ALGORITHM                      156
 # define EVP_R_UNSUPPORTED_CIPHER                         107
 # define EVP_R_UNSUPPORTED_KEYLENGTH                      123
 # define EVP_R_UNSUPPORTED_KEY_DERIVATION_FUNCTION        124
 # define EVP_R_UNSUPPORTED_KEY_SIZE                       108
+# define EVP_R_UNSUPPORTED_NUMBER_OF_ROUNDS               135
 # define EVP_R_UNSUPPORTED_PRF                            125
 # define EVP_R_UNSUPPORTED_PRIVATE_KEY_ALGORITHM          118
 # define EVP_R_UNSUPPORTED_SALT_TYPE                      126

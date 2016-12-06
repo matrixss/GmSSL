@@ -1034,8 +1034,45 @@ int SM9_decrypt(SM9PublicParameters *mpk, const SM9EncParameters *encparams,
 {
 	int ret = 0;
 	SM9Ciphertext *c = NULL;
+	const unsigned char *p;
 
-	return 0;
+	if (!mpk || !encparams || !in || !outlen || !sk) {
+		SM9err(SM9_F_SM9_DECRYPT, ERR_R_PASSED_NULL_PARAMETER);
+		return 0;
+	}
+	if (inlen <= 0 || inlen > SM9_MAX_CIPHERTEXT_LENGTH) {
+		SM9err(SM9_F_SM9_DECRYPT, SM9_R_INVALID_CIPHERTEXT);
+		return 0;
+	}
+	if (idlen <= 0 || idlen > SM9_MAX_ID_LENGTH || strlen(id) != idlen) {
+		SM9err(SM9_F_SM9_DECRYPT, SM9_R_INVALID_ID_LENGTH);
+		return 0;
+	}
+
+	if (!out) {
+		*outlen = inlen;
+		return 1;
+	}
+	if (*outlen < inlen) {
+		SM9err(SM9_F_SM9_DECRYPT, SM9_R_BUFFER_TOO_SMALL);
+		return 0;
+	}
+
+	p = &in;
+	if (!(c = d2i_SM9Ciphertext(NULL, &p, inlen))) {
+		SM9err(SM9_F_SM9_DECRYPT, ERR_R_SM9_LIB);
+		goto end;
+	}
+
+	if (!(SM9_do_decrypt(mpk, encparams, c, out, outlen, sk, id, idlen))) {
+		SM9err(SM9_F_SM9_DECRYPT, ERR_R_SM9_LIB);
+		goto end;
+	}
+
+	ret = 1;
+end:
+	SM9Ciphertext_free(c);
+	return ret;
 }
 
 static int SM9EncParameters_init_with_recommended(SM9EncParameters *encparams)

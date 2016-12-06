@@ -91,8 +91,6 @@
 #define SGD_SM4_MAC		(SGD_SM4|SGD_MAC)
 #define SGD_ZUC_EEA3		(SGD_ZUC|SGD_EEA3)
 #define SGD_ZUC_EIA3		(SGD_ZUC|SGD_EIA3)
-#define SGD_PRESERVE_FROM	0x00001000
-#define SGD_PERSERVE_TO         0x800000FF
 
 /* public key usage */
 #define SGD_PK_SIGN		0x0100
@@ -311,6 +309,9 @@ typedef int32_t		SGD_BOOL;
 #define SGD_STATUS_INIT			0x00000201
 #define SGD_STATUS_READY		0x00000202
 #define SGD_STATUS_EXCEPTION		0x00000203
+
+
+
 
 #endif
 

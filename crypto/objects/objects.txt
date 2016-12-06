@@ -1555,6 +1555,8 @@ sm-scheme 104 8		: SMS4-GCM		: sms4-gcm
 sm-scheme 104 9		: SMS4-CCM		: sms4-ccm
 sm-scheme 104 10	: SMS4-XTS		: sms4-xts
 sm-scheme 104 11	: SMS4-WRAP		: sms4-wrap
+sm-scheme 104 12	: SMS4-WRAP-PAD		: sms4-wrap-pad
+sm-scheme 104 100	: SMS4-OCB		: sms4-ocb
 
 !Alias sm7 sm-scheme 105
 
