@@ -769,6 +769,7 @@ int SAF_SM2_DecodeEnvelopedData(
 #define SAR_KeyInfoTypeErr	0x02000402
 #define SAR_NotLogin		0x02000403
 
+
 #ifdef __cplusplus
 }
 #endif

@@ -112,7 +112,6 @@ typedef struct RSArefPrivateKey_st {
 
 #define ECCref_MAX_BITS		512
 #define ECCref_MAX_LEN		((ECCref_MAX_BITS+7) / 8)
-#define ECCref_MAX_CIPHER_LEN	136
 
 typedef struct ECCrefPublicKey_st {
 	unsigned int bits;
@@ -128,15 +127,17 @@ typedef struct ECCrefPrivateKey_st {
 typedef struct ECCCipher_st {
 	unsigned char x[ECCref_MAX_LEN];
 	unsigned char y[ECCref_MAX_LEN];
-	unsigned char M[32]; /* digest of plaintext */
-	unsigned int L; /* length of ciphertext `C` */
-	unsigned char C[1];
 	/*
 	 * In SM2 ciphertext the `M` is the hash result of the plaintext
 	 * with generated Diffie-Hellman keys, so the length should be the
 	 * digest length, for SM3 it is 256-bit which is equal to the max
 	 * elliptic curve key length (256-bit).
 	 */
+	unsigned char M[32];
+
+	/* length of ciphertext `C` */
+	unsigned int L;
+	unsigned char C[1];
 } ECCCipher;
 
 typedef struct ECCSignature_st {
@@ -144,7 +145,10 @@ typedef struct ECCSignature_st {
 	unsigned char s[ECCref_MAX_LEN];
 } ECCSignature;
 
-/*
+/* ENVELOPEDKEYBLOB is not used in this API, and it requires the
+ * ECCCIPHERBLOB and ECCPUBLICKEYBLOB defined in SKF API
+ */
+#if 0
 typedef struct SDF_ENVELOPEDKEYBLOB {
 	unsigned long Version;
 	unsigned long ulSymmAlgID;
@@ -152,7 +156,7 @@ typedef struct SDF_ENVELOPEDKEYBLOB {
 	ECCPUBLICKEYBLOB PubKey;
 	unsigned char cbEncryptedPrivKey[64];
 } ENVELOPEDKEYBLOB, *PENVELOPEDKEYBLOB;
-*/
+#endif
 
 int SDF_OpenDevice(
 	void **phDeviceHandle);
@@ -387,30 +391,6 @@ int SDF_ExternalEncrypt_ECC(
 	unsigned char *pucData,
 	unsigned int uiDataLength,
 	ECCCipher *pucEncData);
-
-int SDF_ExternalDecrypt_ECC(
-	void *hSessionHandle,
-	unsigned int uiAlgID,
-	ECCrefPrivateKey *pucPrivateKey,
-	ECCCipher *pucEncData,
-	unsigned char *pucData,
-	unsigned int *puiDataLength);
-
-int SDF_InternalEncrypt_ECC(
-	void *hSessionHandle,
-	unsigned int uiIPKIndex,
-	unsigned int uiAlgID,
-	unsigned char *pucData,
-	unsigned int uiDataLength,
-	ECCCipher *pucEncData);
-
-int SDF_InternalDecrypt_ECC(
-	void *hSessionHandle,
-	unsigned int uiISKIndex,
-	unsigned int uiAlgID,
-	ECCCipher *pucEncData,
-	unsigned char *pucData,
-	unsigned int *puiDataLength);
 
 int SDF_Encrypt(
 	void *hSessionHandle,

@@ -51,14 +51,10 @@
 #include <string.h>
 #include <stdlib.h>
 #include <openssl/evp.h>
-#include <openssl/skf.h>
-#include <openssl/sdf.h>
-#include <openssl/rand.h>
-#include <openssl/gmapi.h>
-#include "gmapi_lcl.h"
+#include <openssl/gmsdf.h>
 #include "sdf_lcl.h"
 
-int gmssl_SDF_CalculateMAC(
+int SDF_CalculateMAC(
 	void *hSessionHandle,
 	void *hKeyHandle,
 	unsigned int uiAlgID,
@@ -78,48 +74,48 @@ int gmssl_SDF_CalculateMAC(
 	/* check arguments, omit the useless pucIV in CBC-MAC */
 	if (!hSessionHandle || !hKeyHandle || !pucData ||
 		!pucMAC || !puiMACLength) {
-		GMAPIerr(GMAPI_F_SDF_CALCULATEMAC,
+		SDFerr(SDF_F_SDF_CALCULATEMAC,
 			ERR_R_PASSED_NULL_PARAMETER);
 		return SDR_UNKNOWERR;
 	}
 	/* the CBC-MAC API accept size_t input length, but we don't
 	 * know whether future MAC implementation will change this */
 	if (uiDataLength <= 0 || uiDataLength > INT_MAX) {
-		GMAPIerr(GMAPI_F_SDF_CALCULATEMAC,
-			GMAPI_R_INVALID_INPUT_LENGTH);
+		SDFerr(SDF_F_SDF_CALCULATEMAC,
+			SDF_R_INVALID_INPUT_LENGTH);
 		return SDR_UNKNOWERR;
 	}
 
 	/* parse arguments */
 	if (!(cipher = sdf_get_cipher(hSessionHandle, uiAlgID))) {
-		GMAPIerr(GMAPI_F_SDF_CALCULATEMAC, GMAPI_R_INVALID_ALGOR);
+		SDFerr(SDF_F_SDF_CALCULATEMAC, SDF_R_INVALID_ALGOR);
 		goto end;
 	}
 	if (key->keylen != EVP_CIPHER_key_length(cipher)) {
-		GMAPIerr(GMAPI_F_SDF_CALCULATEMAC,
-			GMAPI_R_INVALID_KEY_HANDLE);
+		SDFerr(SDF_F_SDF_CALCULATEMAC,
+			SDF_R_INVALID_KEY_HANDLE);
 		goto end;
 	}
 	if (*puiMACLength < EVP_CIPHER_block_size(cipher)) {
-		GMAPIerr(GMAPI_F_SDF_CALCULATEMAC, GMAPI_R_BUUTER_TOO_SMALL);
+		SDFerr(SDF_F_SDF_CALCULATEMAC, SDF_R_BUUTER_TOO_SMALL);
 		goto end;
 	}
 
 	/* generate mac */
 	if (!(ctx = CBCMAC_CTX_new())) {
-		GMAPIerr(GMAPI_F_SDF_CALCULATEMAC, ERR_R_MALLOC_FAILURE);
+		SDFerr(SDF_F_SDF_CALCULATEMAC, ERR_R_MALLOC_FAILURE);
 		goto end;
 	}
 	if (!CBCMAC_Init(ctx, key->key, key->keylen, cipher, session->engine)) {
-		GMAPIerr(GMAPI_F_SDF_CALCULATEMAC, GMAPI_R_CBCMAC_FAILURE);
+		SDFerr(SDF_F_SDF_CALCULATEMAC, SDF_R_CBCMAC_FAILURE);
 		goto end;
 	}
 	if (!CBCMAC_Update(ctx, pucData, (size_t)uiDataLength)) {
-		GMAPIerr(GMAPI_F_SDF_CALCULATEMAC, GMAPI_R_CBCMAC_FAILURE);
+		SDFerr(SDF_F_SDF_CALCULATEMAC, SDF_R_CBCMAC_FAILURE);
 		goto end;
 	}
 	if (!CBCMAC_Final(ctx, pucMAC, &siz)) {
-		GMAPIerr(GMAPI_F_SDF_CALCULATEMAC, GMAPI_R_CBCMAC_FAILURE);
+		SDFerr(SDF_F_SDF_CALCULATEMAC, SDF_R_CBCMAC_FAILURE);
 		goto end;
 	}
 

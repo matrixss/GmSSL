@@ -2781,8 +2781,6 @@ WORK_STATE tls_prepare_client_certificate(SSL *s, WORK_STATE wst)
     return WORK_ERROR;
 }
 
-/* gmssl: the client certificate message in GM-SSL is different from the TLS
- */
 int tls_construct_client_certificate(SSL *s)
 {
     if (!ssl3_output_cert_chain(s,

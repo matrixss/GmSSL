@@ -1,5 +1,5 @@
 /* ====================================================================
- * Copyright (c) 2015 - 2016 The GmSSL Project.  All rights reserved.
+ * Copyright (c) 2016 The GmSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -47,33 +47,53 @@
  * ====================================================================
  */
 
-char *SKF_get_alg_name(ULONG ulAlgID)
+#include <openssl/evp.h>
+#include <openssl/sgd.h>
+
+const EVP_MD *EVP_get_digestbysgd(int sgd)
 {
-	//FIXME: make these name compatible with OBJ short name
-	switch (ulAlgID) {
-	case SGD_SM1_ECB: return "SM1-ECB";
-	case SGD_SM1_CBC: return "SM1-CBC";
-	case SGD_SM1_CFB: return "SM1-CFB";
-	case SGD_SM1_OFB: return "SM1-OFB";
-	case SGD_SM1_MAC: return "SM1-MAC";
-	case SGD_SM4_ECB: return "SM4-ECB";
-	case SGD_SM4_CBC: return "SM4-CBC";
-	case SGD_SM4_CFB: return "SM4-CFB";
-	case SGD_SM4_OFB: return "SM4-OFB";
-	case SGD_SM4_MAC: return "SM4-MAC";
-	case SGD_SSF33_ECB: return "SSF33-ECB";
-	case SGD_SSF33_CBC: return "SSF33-CBC";
-	case SGD_SSF33_CFB: return "SSF33-CFB";
-	case SGD_SSF33_OFB: return "SSF33-OFB";
-	case SGD_SSF33_MAC: return "SSF33-MAC";
-	case SGD_RSA: return "RSA";
-	case SGD_SM2_1: return "SM2-1";
-	case SGD_SM2_2: return "SM2-2";
-	case SGD_SM2_3: return "SM2-3";
-	case SGD_SM3: return "SM3";
-	case SGD_SHA1: return "SHA-1";
-	case SGD_SHA256: return "SHA256";
+	switch (sgd) {
+	case SGD_SM3:
+		return EVP_sm3();
+	case SGD_SHA1:
+		return EVP_sha1();
+	case SGD_SHA256:
+		return EVP_sha256();
 	}
-	return "(unknown)";
+	return NULL;
 }
+
+const EVP_CIPHER *EVP_get_cipherbysgd(int sgd)
+{
+	switch (sgd) {
+	case SGD_SM4_ECB:
+		return EVP_sms4_ecb();
+	case SGD_SM4_CBC:
+		return EVP_sms4_cbc();
+	case SGD_SM4_CFB:
+		return EVP_sms4_cfb();
+	case SGD_SM4_OFB:
+		return EVP_sms4_ofb();
+	case SGD_ZUC:
+		return EVP_zuc();
+	case SGD_ZUC_EEA3:
+		return EVP_zuc_eea3();
+	}
+	return NULL;
+}
+
+/*
+int load_engine(void)
+{
+	ENGINE *e;
+
+	ENGINE_load_builtin_engines(0);
+
+	ENGINE_register_all_complete();
+
+
+}
+*/
+
+
 

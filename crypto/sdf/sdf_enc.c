@@ -69,7 +69,7 @@
  * as some of the ciphers such as SM1/SSF33 can not be supported by
  * software, we can use ENGINEs hoping that such ciphers can be supported.
  */
-int gmssl_SDF_Encrypt(
+int SDF_Encrypt(
 	void *hSessionHandle,
 	void *hKeyHandle,
 	unsigned int uiAlgID,
@@ -90,45 +90,45 @@ int gmssl_SDF_Encrypt(
 	/* check arguments */
 	if (!hSessionHandle || !hKeyHandle || !pucIV || !pucData || !pucEncData
 		|| !puiEncDataLength) {
-		GMAPIerr(GMAPI_F_SDF_ENCRYPT, ERR_R_PASSED_NULL_PARAMETER);
+		SDFerr(SDF_F_SDF_ENCRYPT, ERR_R_PASSED_NULL_PARAMETER);
 		return SDR_UNKNOWERR;
 	}
 	if (uiDataLength <= 0 || uiDataLength > INT_MAX) {
-		GMAPIerr(GMAPI_F_SDF_ENCRYPT, GMAPI_R_INVALID_INPUT_LENGTH);
+		SDFerr(SDF_F_SDF_ENCRYPT, SDF_R_INVALID_INPUT_LENGTH);
 		return SDR_UNKNOWERR;
 	}
 	if (*puiEncDataLength < uiDataLength + EVP_MAX_BLOCK_LENGTH * 2) {
-		GMAPIerr(GMAPI_F_SDF_ENCRYPT, GMAPI_R_BUFFER_TOO_SMALL);
+		SDFerr(SDF_F_SDF_ENCRYPT, SDF_R_BUFFER_TOO_SMALL);
 		return SDR_UNKNOWERR;
 	}
 
 	/* parse arguments */
 	if (!(cipher = sdf_get_cipher(hSessionHandle, uiAlgID))) {
-		GMAPIerr(GMAPI_F_SDF_ENCRYPT, GMAPI_R_INVALID_ALGOR);
+		SDFerr(SDF_F_SDF_ENCRYPT, SDF_R_INVALID_ALGOR);
 		goto end;
 	}
 	if (key->keylen != EVP_CIPHER_key_length(cipher)) {
-		GMAPIerr(GMAPI_F_SDF_ENCRYPT, GMAPI_R_INVALID_KEY_HANDLE);
+		SDFerr(SDF_F_SDF_ENCRYPT, SDF_R_INVALID_KEY_HANDLE);
 		goto end;
 	}
 
 	/* encrypt */
 	if (!(ctx = EVP_CIPHER_CTX_new())) {
-		GMAPIerr(GMAPI_F_SDF_ENCRYPT, ERR_R_MALLOC_FAILURE);
+		SDFerr(SDF_F_SDF_ENCRYPT, ERR_R_MALLOC_FAILURE);
 		goto end;
 	}
 	if (!EVP_EncryptInit_ex(ctx, cipher, session->engine, key->key, pucIV)) {
-		GMAPIerr(GMAPI_F_SDF_ENCRYPT, ERR_R_EVP_LIB);
+		SDFerr(SDF_F_SDF_ENCRYPT, ERR_R_EVP_LIB);
 		goto end;
 	}
 	p = pucEncData;
 	if (!EVP_EncryptUpdate(ctx, p, &len, pucData, (int)uiDataLength)) {
-		GMAPIerr(GMAPI_F_SDF_ENCRYPT, ERR_R_EVP_LIB);
+		SDFerr(SDF_F_SDF_ENCRYPT, ERR_R_EVP_LIB);
 		goto end;
 	}
 	p += len;
 	if (!EVP_EncryptFinal_ex(ctx, p, &len)) {
-		GMAPIerr(GMAPI_F_SDF_ENCRYPT, ERR_R_EVP_LIB);
+		SDFerr(SDF_F_SDF_ENCRYPT, ERR_R_EVP_LIB);
 		goto end;
 	}
 	p += len;
@@ -142,7 +142,7 @@ end:
 	return 0;
 }
 
-int gmssl_SDF_Decrypt(
+int SDF_Decrypt(
 	void *hSessionHandle,
 	void *hKeyHandle,
 	unsigned int uiAlgID,
@@ -163,46 +163,46 @@ int gmssl_SDF_Decrypt(
 	/* check arguments */
 	if (!hSessionHandle || !hKeyHandle || !pucIV || !pucEncData ||
 		!pucData || !puiDataLength) {
-		GMAPIerr(GMAPI_F_SDF_DECRYPT, ERR_R_PASSED_NULL_PARAMETER);
+		SDFerr(SDF_F_SDF_DECRYPT, ERR_R_PASSED_NULL_PARAMETER);
 		return SDR_UNKNOWERR;
 	}
 	if (uiEncDataLength <= 0 || uiEncDataLength > INT_MAX) {
-		GMAPIerr(GMAPI_F_SDF_DECRYPT, GMAPI_R_INVALID_INPUT_LENGTH);
+		SDFerr(SDF_F_SDF_DECRYPT, SDF_R_INVALID_INPUT_LENGTH);
 		return SDR_UNKNOWERR;
 	}
 	if (*puiDataLength < uiEncDataLength) {
-		GMAPIerr(GMAPI_F_SDF_DECRYPT, GMAPI_R_BUFFER_TOO_SMALL);
+		SDFerr(SDF_F_SDF_DECRYPT, SDF_R_BUFFER_TOO_SMALL);
 		return SDR_UNKNOWERR;
 	}
 
 	/* parse arguments */
 	if (!(cipher = sdf_get_cipher(hSessionHandle, uiAlgID))) {
-		GMAPIerr(GMAPI_F_SDF_DECRYPT, GMAPI_R_INVALID_ALGOR);
+		SDFerr(SDF_F_SDF_DECRYPT, SDF_R_INVALID_ALGOR);
 		goto end;
 	}
 	if (key->keylen != EVP_CIPHER_key_length(cipher)) {
-		GMAPIerr(GMAPI_F_SDF_DECRYPT, GMAPI_R_INVALID_KEY_HANDLE);
+		SDFerr(SDF_F_SDF_DECRYPT, SDF_R_INVALID_KEY_HANDLE);
 		goto end;
 	}
 
 	/* decrypt */
 	if (!(ctx = EVP_CIPHER_CTX_new())) {
-		GMAPIerr(GMAPI_F_SDF_DECRYPT, ERR_R_MALLOC_FAILURE);
+		SDFerr(SDF_F_SDF_DECRYPT, ERR_R_MALLOC_FAILURE);
 		goto end;
 	}
 	if (!EVP_DecryptInit_ex(ctx, cipher, session->engine, key->key, pucIV)) {
-		GMAPIerr(GMAPI_F_SDF_DECRYPT, ERR_R_EVP_LIB);
+		SDFerr(SDF_F_SDF_DECRYPT, ERR_R_EVP_LIB);
 		goto end;
 	}
 	p = pucData;
 	if (!EVP_DecryptUpdate(ctx, p, &len, pucEncData,
 		(int)uiEncDataLength)) {
-		GMAPIerr(GMAPI_F_SDF_DECRYPT, ERR_R_EVP_LIB);
+		SDFerr(SDF_F_SDF_DECRYPT, ERR_R_EVP_LIB);
 		goto end;
 	}
 	p += len;
 	if (!EVP_DecryptFinal_ex(ctx, p, &len)) {
-		GMAPIerr(GMAPI_F_SDF_DECRYPT, ERR_R_EVP_LIB);
+		SDFerr(SDF_F_SDF_DECRYPT, ERR_R_EVP_LIB);
 		goto end;
 	}
 	p += len;

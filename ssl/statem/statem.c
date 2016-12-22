@@ -289,17 +289,12 @@ static int state_machine(SSL *s, int server)
                 goto end;
             }
         } else {
-            /* the GMSSL protocol has a different major version number */
-#if 0
-            if ((s->version >> 8) != SSL3_VERSION_MAJOR ||
-                (s->version >> 8) != GMSSL1_VERSION_MAJOR) {
+            if ((s->version >> 8) != SSL3_VERSION_MAJOR) {
                 SSLerr(SSL_F_STATE_MACHINE, ERR_R_INTERNAL_ERROR);
                 goto end;
             }
-#endif
         }
 
-        /* gmssl: what is SSL_SECOP_VERSION ? */
         if (!ssl_security(s, SSL_SECOP_VERSION, 0, s->version, NULL)) {
             SSLerr(SSL_F_STATE_MACHINE, SSL_R_VERSION_TOO_LOW);
             goto end;

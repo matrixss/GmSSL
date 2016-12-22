@@ -62,3 +62,4 @@ int SAF_PrintNameInfo(FILE *fp, SGD_NAME_INFO *nameInfo);
 char *SAF_GetErrorString(int errno);
 
 
+/* BEGIN ERROR CODES */

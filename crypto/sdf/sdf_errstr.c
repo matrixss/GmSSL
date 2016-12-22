@@ -49,7 +49,7 @@
 
 #include <openssl/sdf.h>
 #include <openssl/gmapi.h>
-#include "gmapi_lcl.h"
+
 
 static GMAPI_ERRSTR sdf_errstr[] = {
 	{ SDR_OK,		"Success" },
@@ -60,10 +60,10 @@ static GMAPI_ERRSTR sdf_errstr[] = {
 	{ SDR_HARDFAIL,		"Hardware failure" },
 	{ SDR_OPENDEVICE,	"Open device" },
 	{ SDR_OPENSESSION,	"Open session" },
-	{ SDR_PARDENY,		"Private key deny" },
+	{ SDR_PARDENY,		"Private key access denied (for index 0)" },
 	{ SDR_KEYNOTEXIST,	"Key not exist" },
-	{ SDR_ALGNOTSUPPOT,	"Algorithm not support" },
-	{ SDR_ALGMODNOTSUPPORT,	"Algorithm mode not support" },
+	{ SDR_ALGNOTSUPPOT,	"Algorithm not supported" },
+	{ SDR_ALGMODNOTSUPPORT,	"Algorithm mode not supported" },
 	{ SDR_PKOPERR,		"Public key operation error" },
 	{ SDR_SKOPERR,		"Private key operation error" },
 	{ SDR_SIGNERR,		"Signature generation error" },
@@ -75,6 +75,15 @@ static GMAPI_ERRSTR sdf_errstr[] = {
 	{ SDR_FILEOFSERR,	"File offset error" },
 	{ SDR_KEYTYPEERR,	"Key type error" },
 	{ SDR_KEYERR,		"Key error" },
+	{ SDR_ENCDATAERR,	"ECC encrypted data error" },
+	{ SDR_RANDERR,		"Random number generator error" },
+	{ SDR_PRKRERR,		"Private key privilege error" },
+	{ SDR_MACERR,		"MAC computation error" },
+	{ SDR_FILEEXSITS,	"File already exist" },
+	{ SDR_FILEWERR,		"File write error" },
+	{ SDF_NOBUFFER,		"No buffer" },
+	{ SDR_INARGERR,		"Input argument error" },
+	{ SDR_OUTARGERR,	"Output argument error" },
 };
 
 char *SDF_GetErrorString(int err)

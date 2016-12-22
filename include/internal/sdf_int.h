@@ -51,10 +51,9 @@
 #define HEADER_SDF_INT_H
 
 #include <openssl/sgd.h>
+#include <openssl/sdf.h>
+#include "internal/dso.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 typedef int (*SDF_OpenDevice_FuncPtr)(
 	void **phDeviceHandle);
@@ -275,7 +274,7 @@ typedef int (*SDF_InternalSign_ECC_FuncPtr)(
 	unsigned int uiDataLength,
 	ECCSignature *pucSignature);
 
-typedef int (*SDF_InternalVerify_ECCv(
+typedef int (*SDF_InternalVerify_ECC_FuncPtr)(
 	void *hSessionHandle,
 	unsigned int uiIPKIndex,
 	unsigned char *pucData,
@@ -387,7 +386,7 @@ typedef int (*SDF_DeleteFile_FuncPtr)(
 	unsigned char *pucFileName,
 	unsigned int uiNameLen);
 
-typedef struct method_st {
+typedef struct sdf_method_st {
 	char *name;
 	SDF_OpenDevice_FuncPtr OpenDevice;
 	SDF_CloseDevice_FuncPtr CloseDevice;
@@ -422,7 +421,7 @@ typedef struct method_st {
 	SDF_InternalPrivateKeyOperation_RSA_FuncPtr InternalPrivateKeyOperation_RSA;
 	SDF_ExternalVerify_ECC_FuncPtr ExternalVerify_ECC;
 	SDF_InternalSign_ECC_FuncPtr InternalSign_ECC;
-	SDF_InternalVerify_ECC InternalVerify_ECC;
+	SDF_InternalVerify_ECC_FuncPtr InternalVerify_ECC;
 	SDF_ExternalEncrypt_ECC_FuncPtr ExternalEncrypt_ECC;
 	SDF_ExternalDecrypt_ECC_FuncPtr ExternalDecrypt_ECC;
 	SDF_InternalEncrypt_ECC_FuncPtr InternalEncrypt_ECC;
@@ -436,60 +435,9 @@ typedef struct method_st {
 	SDF_CreateFile_FuncPtr CreateFile;
 	SDF_ReadFile_FuncPtr ReadFile;
 	SDF_WriteFile_FuncPtr WriteFile;
-	SDF_DeleteFile_FuncPtr WriteFile;
-
+	SDF_DeleteFile_FuncPtr DeleteFile;
 } SDF_METHOD;
 
+int SDF_LoadModule(SDF_METHOD *sdf, DSO *dso);
 
-int SDF_LoadModule(SDF_METHOD *sdf, DSO *dso)
-{
-sdf->OpenDevice = DSO_bind_func(dso, "SDF_OpenDevice");
-sdf->CloseDevice = DSO_bind_func(dso, "SDF_CloseDevice");
-sdf->OpenSession = DSO_bind_func(dso, "SDF_OpenSession");
-sdf->CloseSession = DSO_bind_func(dso, "SDF_CloseSession");
-sdf->GetDeviceInfo = DSO_bind_func(dso, "SDF_GetDeviceInfo");
-sdf->GenerateRandom = DSO_bind_func(dso, "SDF_GenerateRandom");
-sdf->GetPrivateKeyAccessRight = DSO_bind_func(dso, "SDF_GetPrivateKeyAccessRight");
-sdf->ReleasePrivateKeyAccessRight = DSO_bind_func(dso, "SDF_ReleasePrivateKeyAccessRight");
-sdf->ExportSignPublicKey_RSA = DSO_bind_func(dso, "SDF_ExportSignPublicKey_RSA");
-sdf->ExportEncPublicKey_RSA = DSO_bind_func(dso, "SDF_ExportEncPublicKey_RSA");
-sdf->GenerateKeyPair_RSA = DSO_bind_func(dso, "SDF_GenerateKeyPair_RSA");
-sdf->GenerateKeyWithIPK_RSA = DSO_bind_func(dso, "SDF_GenerateKeyWithIPK_RSA");
-sdf->GenerateKeyWithEPK_RSA = DSO_bind_func(dso, "SDF_GenerateKeyWithEPK_RSA");
-sdf->ImportKeyWithISK_RSA = DSO_bind_func(dso, "SDF_ImportKeyWithISK_RSA");
-sdf->ExchangeDigitEnvelopeBaseOnRSA = DSO_bind_func(dso, "SDF_ExchangeDigitEnvelopeBaseOnRSA");
-sdf->ExportSignPublicKey_ECC = DSO_bind_func(dso, "SDF_ExportSignPublicKey_ECC");
-sdf->ExportEncPublicKey_ECC = DSO_bind_func(dso, "SDF_ExportEncPublicKey_ECC");
-sdf->GenerateKeyPair_ECC = DSO_bind_func(dso, "SDF_GenerateKeyPair_ECC");
-sdf->GenerateKeyWithIPK_ECC = DSO_bind_func(dso, "SDF_GenerateKeyWithIPK_ECC");
-sdf->GenerateKeyWithEPK_ECC = DSO_bind_func(dso, "SDF_GenerateKeyWithEPK_ECC");
-sdf->ImportKeyWithISK_ECC = DSO_bind_func(dso, "SDF_ImportKeyWithISK_ECC");
-sdf->GenerateAgreementDataWithECC = DSO_bind_func(dso, "SDF_GenerateAgreementDataWithECC");
-sdf->GenerateKeyWithECC = DSO_bind_func(dso, "SDF_GenerateKeyWithECC");
-sdf->GenerateAgreementDataAndKeyWithECC = DSO_bind_func(dso, "SDF_GenerateAgreementDataAndKeyWithECC");
-sdf->ExchangeDigitEnvelopeBaseOnECC = DSO_bind_func(dso, "SDF_ExchangeDigitEnvelopeBaseOnECC");
-sdf->GenerateKeyWithKEK = DSO_bind_func(dso, "SDF_GenerateKeyWithKEK");
-sdf->ImportKeyWithKEK = DSO_bind_func(dso, "SDF_ImportKeyWithKEK");
-sdf->DestroyKey = DSO_bind_func(dso, "SDF_DestroyKey");
-sdf->ExternalPublicKeyOperation_RSA = DSO_bind_func(dso, "SDF_ExternalPublicKeyOperation_RSA");
-sdf->InternalPublicKeyOperation_RSA = DSO_bind_func(dso, "SDF_InternalPublicKeyOperation_RSA");
-sdf->InternalPrivateKeyOperation_RSA = DSO_bind_func(dso, "SDF_InternalPrivateKeyOperation_RSA");
-sdf->ExternalVerify_ECC = DSO_bind_func(dso, "SDF_ExternalVerify_ECC");
-sdf->InternalSign_ECC = DSO_bind_func(dso, "SDF_InternalSign_ECC");
-sdf->InternalVerify_ECC = DSO_bind_func(dso, "SDF_InternalVerify_ECC");
-sdf->ExternalEncrypt_ECC = DSO_bind_func(dso, "SDF_ExternalEncrypt_ECC");
-sdf->ExternalDecrypt_ECC = DSO_bind_func(dso, "SDF_ExternalDecrypt_ECC");
-sdf->InternalEncrypt_ECC = DSO_bind_func(dso, "SDF_InternalEncrypt_ECC");
-sdf->InternalDecrypt_ECC = DSO_bind_func(dso, "SDF_InternalDecrypt_ECC");
-sdf->Encrypt = DSO_bind_func(dso, "SDF_Encrypt");
-sdf->Decrypt = DSO_bind_func(dso, "SDF_Decrypt");
-sdf->CalculateMAC = DSO_bind_func(dso, "SDF_CalculateMAC");
-sdf->HashInit = DSO_bind_func(dso, "SDF_HashInit");
-sdf->HashUpdate = DSO_bind_func(dso, "SDF_HashUpdate");
-sdf->HashFinal = DSO_bind_func(dso, "SDF_HashFinal");
-sdf->CreateFile = DSO_bind_func(dso, "SDF_CreateFile");
-sdf->ReadFile = DSO_bind_func(dso, "SDF_ReadFile");
-sdf->WriteFile = DSO_bind_func(dso, "SDF_WriteFile");
-sdf->DeleteFile = DSO_bind_func(dso, "SDF_WriteFile");
-}
-
+#endif

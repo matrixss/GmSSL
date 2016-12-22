@@ -235,6 +235,18 @@ int ssl3_read_n(SSL *s, int n, int max, int extend, int clearold)
         /* ... now we can act as if 'extend' was set */
     }
 
+    /*
+     * For DTLS/UDP reads should not span multiple packets because the read
+     * operation returns the whole packet at once (as long as it fits into
+     * the buffer).
+     */
+    if (SSL_IS_DTLS(s)) {
+        if (left == 0 && extend)
+            return 0;
+        if (left > 0 && n > left)
+            n = left;
+    }
+
     /* if there is enough in the buffer from a previous read, take some */
     if (left >= n) {
         s->rlayer.packet_length += n;
@@ -297,6 +309,15 @@ int ssl3_read_n(SSL *s, int n, int max, int extend, int clearold)
             return (i);
         }
         left += i;
+        /*
+         * reads should *never* span multiple packets for DTLS because the
+         * underlying transport protocol is message oriented as opposed to
+         * byte oriented as in the TLS case.
+         */
+        if (SSL_IS_DTLS(s)) {
+            if (n > left)
+                n = left;       /* makes the while condition false */
+        }
     }
 
     /* done reading, now the book-keeping */
@@ -316,6 +337,10 @@ int ssl3_write_bytes(SSL *s, int type, const void *buf_, int len)
     const unsigned char *buf = buf_;
     int tot;
     unsigned int n, split_send_fragment, maxpipes;
+#if !defined(OPENSSL_NO_MULTIBLOCK) && EVP_CIPH_FLAG_TLS1_1_MULTIBLOCK
+    unsigned int max_send_fragment, nw;
+    unsigned int u_len = (unsigned int)len;
+#endif
     SSL3_BUFFER *wb = &s->rlayer.wbuf[0];
     int i;
 
@@ -365,7 +390,132 @@ int ssl3_write_bytes(SSL *s, int type, const void *buf_, int len)
         }
         tot += i;               /* this might be last fragment */
     }
+#if !defined(OPENSSL_NO_MULTIBLOCK) && EVP_CIPH_FLAG_TLS1_1_MULTIBLOCK
+    /*
+     * Depending on platform multi-block can deliver several *times*
+     * better performance. Downside is that it has to allocate
+     * jumbo buffer to accommodate up to 8 records, but the
+     * compromise is considered worthy.
+     */
+    if (type == SSL3_RT_APPLICATION_DATA &&
+        u_len >= 4 * (max_send_fragment = s->max_send_fragment) &&
+        s->compress == NULL && s->msg_callback == NULL &&
+        !SSL_USE_ETM(s) && SSL_USE_EXPLICIT_IV(s) &&
+        EVP_CIPHER_flags(EVP_CIPHER_CTX_cipher(s->enc_write_ctx)) &
+        EVP_CIPH_FLAG_TLS1_1_MULTIBLOCK) {
+        unsigned char aad[13];
+        EVP_CTRL_TLS1_1_MULTIBLOCK_PARAM mb_param;
+        int packlen;
 
+        /* minimize address aliasing conflicts */
+        if ((max_send_fragment & 0xfff) == 0)
+            max_send_fragment -= 512;
+
+        if (tot == 0 || wb->buf == NULL) { /* allocate jumbo buffer */
+            ssl3_release_write_buffer(s);
+
+            packlen = EVP_CIPHER_CTX_ctrl(s->enc_write_ctx,
+                                          EVP_CTRL_TLS1_1_MULTIBLOCK_MAX_BUFSIZE,
+                                          max_send_fragment, NULL);
+
+            if (u_len >= 8 * max_send_fragment)
+                packlen *= 8;
+            else
+                packlen *= 4;
+
+            if (!ssl3_setup_write_buffer(s, 1, packlen)) {
+                SSLerr(SSL_F_SSL3_WRITE_BYTES, ERR_R_MALLOC_FAILURE);
+                return -1;
+            }
+        } else if (tot == len) { /* done? */
+            /* free jumbo buffer */
+            ssl3_release_write_buffer(s);
+            return tot;
+        }
+
+        n = (len - tot);
+        for (;;) {
+            if (n < 4 * max_send_fragment) {
+                /* free jumbo buffer */
+                ssl3_release_write_buffer(s);
+                break;
+            }
+
+            if (s->s3->alert_dispatch) {
+                i = s->method->ssl_dispatch_alert(s);
+                if (i <= 0) {
+                    s->rlayer.wnum = tot;
+                    return i;
+                }
+            }
+
+            if (n >= 8 * max_send_fragment)
+                nw = max_send_fragment * (mb_param.interleave = 8);
+            else
+                nw = max_send_fragment * (mb_param.interleave = 4);
+
+            memcpy(aad, s->rlayer.write_sequence, 8);
+            aad[8] = type;
+            aad[9] = (unsigned char)(s->version >> 8);
+            aad[10] = (unsigned char)(s->version);
+            aad[11] = 0;
+            aad[12] = 0;
+            mb_param.out = NULL;
+            mb_param.inp = aad;
+            mb_param.len = nw;
+
+            packlen = EVP_CIPHER_CTX_ctrl(s->enc_write_ctx,
+                                          EVP_CTRL_TLS1_1_MULTIBLOCK_AAD,
+                                          sizeof(mb_param), &mb_param);
+
+            if (packlen <= 0 || packlen > (int)wb->len) { /* never happens */
+                /* free jumbo buffer */
+                ssl3_release_write_buffer(s);
+                break;
+            }
+
+            mb_param.out = wb->buf;
+            mb_param.inp = &buf[tot];
+            mb_param.len = nw;
+
+            if (EVP_CIPHER_CTX_ctrl(s->enc_write_ctx,
+                                    EVP_CTRL_TLS1_1_MULTIBLOCK_ENCRYPT,
+                                    sizeof(mb_param), &mb_param) <= 0)
+                return -1;
+
+            s->rlayer.write_sequence[7] += mb_param.interleave;
+            if (s->rlayer.write_sequence[7] < mb_param.interleave) {
+                int j = 6;
+                while (j >= 0 && (++s->rlayer.write_sequence[j--]) == 0) ;
+            }
+
+            wb->offset = 0;
+            wb->left = packlen;
+
+            s->rlayer.wpend_tot = nw;
+            s->rlayer.wpend_buf = &buf[tot];
+            s->rlayer.wpend_type = type;
+            s->rlayer.wpend_ret = nw;
+
+            i = ssl3_write_pending(s, type, &buf[tot], nw);
+            if (i <= 0) {
+                if (i < 0 && (!s->wbio || !BIO_should_retry(s->wbio))) {
+                    /* free jumbo buffer */
+                    ssl3_release_write_buffer(s);
+                }
+                s->rlayer.wnum = tot;
+                return i;
+            }
+            if (i == (int)n) {
+                /* free jumbo buffer */
+                ssl3_release_write_buffer(s);
+                return tot + i;
+            }
+            n -= i;
+            tot += i;
+        }
+    } else
+#endif
     if (tot == len) {           /* done? */
         if (s->mode & SSL_MODE_RELEASE_BUFFERS && !SSL_IS_DTLS(s))
             ssl3_release_write_buffer(s);
@@ -551,6 +701,15 @@ int do_ssl3_write(SSL *s, int type, const unsigned char *buf,
 
     if (create_empty_fragment) {
         wb = &s->rlayer.wbuf[0];
+#if defined(SSL3_ALIGN_PAYLOAD) && SSL3_ALIGN_PAYLOAD!=0
+        /*
+         * extra fragment would be couple of cipher blocks, which would be
+         * multiple of SSL3_ALIGN_PAYLOAD, so if we want to align the real
+         * payload, then we can just pretend we simply have two headers.
+         */
+        align = (size_t)SSL3_BUFFER_get_buf(wb) + 2 * SSL3_RT_HEADER_LENGTH;
+        align = SSL3_ALIGN_PAYLOAD - 1 - ((align - 1) % SSL3_ALIGN_PAYLOAD);
+#endif
         outbuf[0] = SSL3_BUFFER_get_buf(wb) + align;
         SSL3_BUFFER_set_offset(wb, align);
     } else if (prefix_len) {
@@ -560,6 +719,10 @@ int do_ssl3_write(SSL *s, int type, const unsigned char *buf,
     } else {
         for (j = 0; j < numpipes; j++) {
             wb = &s->rlayer.wbuf[j];
+#if defined(SSL3_ALIGN_PAYLOAD) && SSL3_ALIGN_PAYLOAD!=0
+            align = (size_t)SSL3_BUFFER_get_buf(wb) + SSL3_RT_HEADER_LENGTH;
+            align = SSL3_ALIGN_PAYLOAD - 1 - ((align - 1) % SSL3_ALIGN_PAYLOAD);
+#endif
             outbuf[j] = SSL3_BUFFER_get_buf(wb) + align;
             SSL3_BUFFER_set_offset(wb, align);
         }
@@ -738,10 +901,10 @@ int ssl3_write_pending(SSL *s, int type, const unsigned char *buf,
         clear_sys_error();
         if (s->wbio != NULL) {
             s->rwstate = SSL_WRITING;
-            i = BIO_write(s->wbio,
-			 (char *)&(SSL3_BUFFER_get_buf(&wb[currbuf])[SSL3_BUFFER_get_offset(&wb[currbuf])]),
-                         (unsigned int)SSL3_BUFFER_get_left(&wb[currbuf]));
-
+            i = BIO_write(s->wbio, (char *)
+                          &(SSL3_BUFFER_get_buf(&wb[currbuf])
+                            [SSL3_BUFFER_get_offset(&wb[currbuf])]),
+                          (unsigned int)SSL3_BUFFER_get_left(&wb[currbuf]));
         } else {
             SSLerr(SSL_F_SSL3_WRITE_PENDING, SSL_R_BIO_NOT_SET);
             i = -1;
@@ -754,6 +917,13 @@ int ssl3_write_pending(SSL *s, int type, const unsigned char *buf,
             s->rwstate = SSL_NOTHING;
             return (s->rlayer.wpend_ret);
         } else if (i <= 0) {
+            if (SSL_IS_DTLS(s)) {
+                /*
+                 * For DTLS, just drop it. That's kind of the whole point in
+                 * using a datagram service
+                 */
+                SSL3_BUFFER_set_left(&wb[currbuf], 0);
+            }
             return (i);
         }
         SSL3_BUFFER_add_offset(&wb[currbuf], i);
@@ -1305,4 +1475,32 @@ int ssl3_read_bytes(SSL *s, int type, int *recvd_type, unsigned char *buf,
  f_err:
     ssl3_send_alert(s, SSL3_AL_FATAL, al);
     return (-1);
+}
+
+void ssl3_record_sequence_update(unsigned char *seq)
+{
+    int i;
+
+    for (i = 7; i >= 0; i--) {
+        ++seq[i];
+        if (seq[i] != 0)
+            break;
+    }
+}
+
+/*
+ * Returns true if the current rrec was sent in SSLv2 backwards compatible
+ * format and false otherwise.
+ */
+int RECORD_LAYER_is_sslv2_record(RECORD_LAYER *rl)
+{
+    return SSL3_RECORD_is_sslv2_record(&rl->rrec[0]);
+}
+
+/*
+ * Returns the length in bytes of the current rrec
+ */
+unsigned int RECORD_LAYER_get_rrec_length(RECORD_LAYER *rl)
+{
+    return SSL3_RECORD_get_length(&rl->rrec[0]);
 }

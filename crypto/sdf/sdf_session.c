@@ -50,12 +50,22 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <openssl/err.h>
 #include <openssl/evp.h>
-#include <openssl/skf.h>
-#include <openssl/sdf.h>
 #include <openssl/rand.h>
-#include <openssl/gmapi.h>
-#include "gmapi_lcl.h"
+#include <openssl/gmsdf.h>
+
+/*
+ * Unlike the `SDF_OpenDevice`, we always assume that the `SDF_OpenSession` can
+ * be called multiple times, and the implementation will always return a new
+ * session handle on success. But noramlly the hardware and the software can
+ * only support limited sessions, so this function can also failed.
+ *
+ * For portability, the application should assume that only one cryptographic
+ * operation can be processed over one session. For example, do not mix
+ * symmetric encryption and hash functions over the same session. The
+ * implementation might support multiple operations, check the vendor's manual.
+ */
 
 /*
  * there are two purpose for session:
@@ -63,32 +73,114 @@
  * (2) a reference to ENGINE
  */
 
-int gmssl_SDF_OpenSession(
+int SDF_OpenSession(
 	void *hDeviceHandle,
 	void **phSessionHandle)
 {
-	return SDR_OK;
+	int ret = SDR_UNKNOWERR;
+	SDF_SESSION *session = NULL;
+
+	if (!hDeviceHandle || hDeviceHande != deviceHandle || !phSessionHandle) {
+		SDFerr(SDF_F_SDF_OPENSESSION, ERR_R_PASSED_NULL_PARAMETER);
+		return SDR_INARGERR;
+	}
+
+	if (!(session = OPENSSL_zalloc(sizeof(*session)))) {
+		SDFerr(SDF_F_SDF_OPENSESSION, ERR_R_MALLOC_FAILURE);
+		ret = SDR_NOBUFFER;
+		goto end;
+	}
+
+	session->magic = SDF_SESSION_MAGIC;
+
+#ifndef OPENSSL_NO_ENGINE
+	if (!(session->engine = ENGINE_by_id(sdf_engine_id))) {
+		SDFerr(SDF_F_SDF_OPENSESSION, SDF_R_LOAD_ENGINE_FAILURE);
+		ret = SDR_HARDFAIL;
+		goto end;
+	}
+#endif
+
+	*phSessionHandle = session;
+	session = NULL;
+	ret = SDR_OK;
+
+end:
+	OPENSSL_free(session);
+	return ret;
 }
 
-int gmssl_SDF_CloseSession(
+int SDF_CloseSession(
 	void *hSessionHandle)
 {
+	SDF_SESSION *session = (SDF_SESSION *)hSessionHandle;
+
+	if (!hSessionHandle) {
+		return SDR_OK;
+	}
+
+	if (session->magic != SDR_SESSION_MAGIC) {
+		SDFerr(SDF_F_SDF_CLOSESESSION, SDF_R_INVALID_SESSION);
+		return SDR_INARGERR;
+	}
+
+#ifndef OPENSSL_NO_ENGINE
+	if (session->engine) {
+		ENGINE_finish(session->engine);
+		ENGINE_free(session->engine);
+	}
+#endif
+
+	for (i = 0; i <= SDF_MAX_KEY_INDEX; i++) {
+		OPENSSL_clear_free(session->password[i]);
+	}
+
+	OPENSSL_free(session);
+
 	return SDR_OK;
 }
 
-int gmssl_SDF_GetPrivateKeyAccessRight(
+/* we try that the password is correct by `ENGINE_load_private_key`, then we
+ * destory the returned `EVP_PKEY` and keep the verified password in the
+ * session. We can use `UI_set_result` to pass the password to the ENGINE
+ */
+int SDF_GetPrivateKeyAccessRight(
 	void *hSessionHandle,
 	unsigned int uiKeyIndex,
 	unsigned char *pucPassword,
 	unsigned int uiPwdLength)
 {
+
+	EVP_PKEY *pkey = NULL;
+	char *key_id = NULL;
+	UI_METHOD *ui_meth = NULL;
+	void *cb_data = NULL;
+
+	if (!(pkey = ENGINE_load_private_key(session->engine, key_id, ui_meth,
+		cb_data))) {
+		SDFerr(SDF_F_SDF_GETPRIVATEKEYACCESSRIGHT, ERR_R_ENGINE_LIB);
+		return 0;
+	}
+
 	return SDR_OK;
 }
 
-int gmssl_SDF_ReleasePrivateKeyAccessRight(
+int SDF_ReleasePrivateKeyAccessRight(
 	void *hSessionHandle,
 	unsigned int uiKeyIndex)
 {
+	SDF_SESSION *session = (SDF_SESSION *)hSessionHandle;
+
+
+	if (!hSessionHandle) {
+	}
+
+	for (i = SDF_MIN_KEY_INDEX; i <= SDF_MAX_KEY_INDEX; i++) {
+		if (session->password[i]) {
+			OPENSSL_free(session->password[i]);
+		}
+	}
+
 	return SDR_OK;
 }
 

@@ -55,27 +55,6 @@
 
 #include <openssl/sgd.h>
 
-#ifndef WIN32
-typedef signed char	INT8;
-typedef signed short	INT16;
-typedef signed int	INT32;
-typedef unsigned char	UINT8;
-typedef unsigned short	UINT16;
-typedef unsigned int	UINT32;
-typedef long		BOOL;
-typedef UINT8		BYTE;
-typedef UINT8		CHAR;
-typedef INT16		SHORT;
-typedef UINT16		USHORT;
-typedef INT32		LONG;
-typedef UINT32		ULONG;
-typedef UINT32		UINT;
-typedef UINT16		WORD;
-typedef UINT32		DWORD;
-typedef UINT32		FLAGS;
-typedef CHAR *		LPSTR;
-typedef void *		HANDLE;
-#endif
 
 typedef HANDLE DEVHANDLE;
 typedef HANDLE HAPPLICATION;
@@ -679,21 +658,6 @@ ULONG DEVAPI SKF_MacFinal(
 
 ULONG DEVAPI SKF_CloseHandle(
 	HANDLE hHandle);
-
-/*
- * The following are some helper functions for the SKF API for printing data
- * types.
- */
-#ifndef NO_GMSSL
-ULONG SKF_PrintDeviceInfo(FILE *fp, DEVINFO *devInfo);
-ULONG SKF_PrintRSAPublicKey(FILE *fp, RSAPUBLICKEYBLOB *pk);
-ULONG SKF_PrintRSAPrivateKey(FILE *fp, RSAPRIVATEKEYBLOB *pk);
-ULONG SKF_PrintECCPublicKey(FILE *fp, ECCPUBLICKEYBLOB *pk);
-ULONG SKF_PrintECCPrivateKey(FILE *fp, ECCPRIVATEKEYBLOB *pk);
-ULONG SKF_PrintECCCipher(FILE *fp, ECCCIPHERBLOB *cipher);
-ULONG SKF_PrintECCSignature(FILE *fp, ECCSIGNATUREBLOB *sig);
-CHAR *SKF_GetErrorString(ULONG errno);
-#endif
 
 
 #define SAR_OK				0x00000000

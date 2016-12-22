@@ -1,4 +1,3 @@
-/* crypto/gmapi/sdf_lib.c */
 /* ====================================================================
  * Copyright (c) 2016 The GmSSL Project.  All rights reserved.
  *
@@ -47,6 +46,11 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  * ====================================================================
  */
+/*
+ * In the standard GM/T 0018, the value of `uiKeyIndex` should start from 1,
+ * and the maximum value is defined by the vendor.
+ * The password length should be at least 8-byte.
+ */
 
 #include <stdio.h>
 #include <string.h>
@@ -59,7 +63,7 @@
 #include "gmapi_lcl.h"
 #include "sdf_lcl.h"
 
-int gmssl_SDF_ImportKeyWithKEK(
+int SDF_ImportKeyWithKEK(
 	void *hSessionHandle,
 	unsigned int uiAlgID,
 	unsigned int uiKEKIndex,
@@ -71,7 +75,7 @@ int gmssl_SDF_ImportKeyWithKEK(
 	return SDR_NOTSUPPORT;
 }
 
-int gmssl_SDF_ImportKey(
+int SDF_ImportKey(
 	void *hSessionHandle,
 	unsigned char *pucKey,
 	unsigned int uiKeyLength,
@@ -82,19 +86,19 @@ int gmssl_SDF_ImportKey(
 
 	/* check arguments */
 	if (!hSessionHandle || !pucKey || !phKeyHandle) {
-		GMAPIerr(GMAPI_F_SDF_IMPORTKEY,
+		SDFerr(SDF_F_SDF_IMPORTKEY,
 			ERR_R_PASSED_NULL_PARAMETER);
 		return 0;
 	}
 	if (uiKeyLength <= 0 || uiKeyLength > EVP_MAX_KEY_LENGTH) {
-		GMAPIerr(GMAPI_F_SDF_IMPORTKEY,
-			GMAPI_R_INVALID_KEY_LENGTH);
+		SDFerr(SDF_F_SDF_IMPORTKEY,
+			SDF_R_INVALID_KEY_LENGTH);
 		return 0;
 	}
 
 	/* create object */
 	if (!(key = OPENSSL_zalloc(sizeof(*key)))) {
-		GMAPIerr(GMAPI_F_SDF_IMPORTKEY, ERR_R_MALLOC_FAILURE);
+		SDFerr(SDF_F_SDF_IMPORTKEY, ERR_R_MALLOC_FAILURE);
 		goto end;
 	}
 
@@ -113,7 +117,7 @@ end:
 }
 
 /* the destroy operation will always success! */
-int gmssl_SDF_DestroyKey(
+int SDF_DestroyKey(
 	void *hSessionHandle,
 	void *hKeyHandle)
 {

@@ -50,46 +50,47 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <openssl/err.h>
 #include <openssl/evp.h>
-#include <openssl/skf.h>
-#include <openssl/sdf.h>
-#include <openssl/rand.h>
-#include <openssl/gmapi.h>
-#include "gmapi_lcl.h"
+#include <openssl/gmsdf.h>
+#include <openssl/engine.h>
 
 /* for software SDF, no device exist.
  * currently we will never return a handle or check a handle
  * the call will always success
  */
 
-static char *deviceHandle = "SDF Device Handle";
+char *deviceHandle = "SDF Device Handle";
 
-int gmssl_SDF_OpenDevice(
+int SDF_OpenDevice(
 	void **phDeviceHandle)
 {
 	if (!phDeviceHandle) {
-		GMAPIerr(GMAPI_F_SDF_OPENDEVICE,
-			ERR_R_PASSED_NULL_PARAMETER);
-		return SDR_UNKNOWERR;
+		SDFerr(SDF_F_SDF_OPENDEVICE, ERR_R_PASSED_NULL_PARAMETER);
+		return SDR_OUTARGERR;
 	}
+
+#ifndef OPENSSL_NO_ENGINE
+	ENGINE_load_builtin_engiens();
+#endif
+
 	*phDeviceHandle = deviceHandle;
 	return SDR_OK;
 }
 
-int gmssl_SDF_CloseDevice(
+int SDF_CloseDevice(
 	void *hDeviceHandle)
 {
 	return SDR_OK;
 }
 
-int gmssl_SDF_GetDeviceInfo(
+int SDF_GetDeviceInfo(
 	void *hSessionHandle,
 	DEVICEINFO *pstDeviceInfo)
 {
 	if (!hSessionHandle || !pstDeviceInfo) {
-		GMAPIerr(GMAPI_F_SDF_GETDEVICEINFO,
-			ERR_R_PASSED_NULL_PARAMETER);
-		return SDR_UNKNOWERR;
+		SDFerr(SDF_F_SDF_GETDEVICEINFO, ERR_R_PASSED_NULL_PARAMETER);
+		return SDR_INARGERR;
 	}
 
 	memset(pstDeviceInfo, 0, sizeof(*pstDeviceInfo));

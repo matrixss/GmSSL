@@ -120,22 +120,22 @@
 #define SGD_SIG_TO		0x800000FF
 
 /* data types */
-typedef char		SGD_CHAR;
-typedef char		SGD_INT8;
-typedef int16_t		SGD_INT16;
-typedef int32_t		SGD_INT32;
-typedef int64_t		SGD_INT64;
-typedef unsigned char	SGD_UCHAR;
-typedef uint8_t		SGD_UINT8;
-typedef uint16_t	SGD_UINT16;
-typedef uint32_t	SGD_UINT32;
-typedef uint64_t	SGD_UINT64;
-typedef uint32_t	SGD_RV;
-typedef void *		SGD_OBJ;
-typedef int32_t		SGD_BOOL;
+typedef char			SGD_CHAR;
+typedef char			SGD_INT8;
+typedef int16_t			SGD_INT16;
+typedef int32_t			SGD_INT32;
+typedef int64_t			SGD_INT64;
+typedef unsigned char		SGD_UCHAR;
+typedef uint8_t			SGD_UINT8;
+typedef uint16_t		SGD_UINT16;
+typedef uint32_t		SGD_UINT32;
+typedef uint64_t		SGD_UINT64;
+typedef uint32_t		SGD_RV;
+typedef void *			SGD_OBJ;
+typedef int32_t			SGD_BOOL;
 
-#define SGD_TRUE	0x00000001
-#define SGD_FALSE	0x00000000
+#define SGD_TRUE		0x00000001
+#define SGD_FALSE		0x00000000
 
 #define SGD_KEY_INDEX		0x00000101
 #define SGD_SECRET_KEY		0x00000102
@@ -310,8 +310,4 @@ typedef int32_t		SGD_BOOL;
 #define SGD_STATUS_READY		0x00000202
 #define SGD_STATUS_EXCEPTION		0x00000203
 
-
-
-
 #endif
-

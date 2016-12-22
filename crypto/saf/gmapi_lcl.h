@@ -47,53 +47,67 @@
  * ====================================================================
  */
 
+#ifndef HEADER_GMAPI_LCL_H
+#define HEADER_GMAPI_LCL_H
+
 #include <openssl/evp.h>
-#include <openssl/sgd.h>
+#include <openssl/cmac.h>
+#include <openssl/cbcmac.h>
 
-const EVP_MD *EVP_get_digestbysgd(int sgd)
-{
-	switch (sgd) {
-	case SGD_SM3:
-		return EVP_sm3();
-	case SGD_SHA1:
-		return EVP_sha1();
-	case SGD_SHA256:
-		return EVP_sha256();
-	}
-	return NULL;
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define SKF_HANDLE_MAGIC 	0x31323334
+#define SKF_HASH_HANDLE		1
+#define SKF_MAC_HANDLE		2
+#define SKF_KEY_HANDLE		10
+#define SKF_CIPHER_HANDLE	11
+
+
+typedef struct {
+	CBCMAC_CTX *ctx;
+	int inited;
+} SAF_MAC_CTX;
+
+typedef struct {
+	CBCMAC_CTX *cbcmac_ctx;
+	EVP_CIPHER_CTX *cipher_ctx;
+	unsigned char *key;
+	unsigned int keylen;
+	const EVP_CIPHER *cipher;
+} SAF_KEY_HANDLE;
+
+typedef struct {
+	int err_no;
+	char *err_str;
+} GMAPI_ERRSTR;
+
+struct SKF_HANDLE {
+	unsigned int magic;
+	int type;
+	int algid;
+	unsigned int keylen;
+	unsigned char key[EVP_MAX_KEY_LENGTH];
+	union {
+		EVP_MD_CTX *md_ctx;
+		CBCMAC_CTX *cbcmac_ctx;
+		EVP_CIPHER_CTX *cipher_ctx;
+	} u;
+	struct SKF_HANDLE *next;
+	struct SKF_HANDLE *prev;
+};
+
+typedef struct SKF_HANDLE SKF_HANDLE;
+
+EVP_MD_CTX *SKF_HANDLE_get_md_ctx(HANDLE hHash);
+CBCMAC_CTX *SKF_HANDLE_get_cbcmac_ctx(HANDLE hMac);
+const EVP_CIPHER *SKF_HANDLE_get_cipher(HANDLE hKey, BLOCKCIPHERPARAM *param);
+EVP_CIPHER_CTX *SKF_HANDLE_get_cipher_ctx(HANDLE hKey);
+unsigned char *SKF_HANDLE_get_key(HANDLE hKey);
+
+
+#ifdef  __cplusplus
 }
-
-const EVP_CIPHER *EVP_get_cipherbysgd(int sgd)
-{
-	switch (sgd) {
-	case SGD_SM4_ECB:
-		return EVP_sms4_ecb();
-	case SGD_SM4_CBC:
-		return EVP_sms4_cbc();
-	case SGD_SM4_CFB:
-		return EVP_sms4_cfb();
-	case SGD_SM4_OFB:
-		return EVP_sms4_ofb();
-	case SGD_ZUC:
-		return EVP_zuc();
-	case SGD_ZUC_EEA3:
-		return EVP_zuc_eea3();
-	}
-	return NULL;
-}
-
-/*
-int load_engine(void)
-{
-	ENGINE *e;
-
-	ENGINE_load_builtin_engines(0);
-
-	ENGINE_register_all_complete();
-
-
-}
-*/
-
-
-
+#endif
+#endif

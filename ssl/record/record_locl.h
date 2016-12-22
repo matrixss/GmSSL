@@ -39,8 +39,17 @@
 __owur int ssl3_read_n(SSL *s, int n, int max, int extend, int clearold);
 
 void RECORD_LAYER_set_write_sequence(RECORD_LAYER *rl, const unsigned char *ws);
+DTLS1_BITMAP *dtls1_get_bitmap(SSL *s, SSL3_RECORD *rr,
+                               unsigned int *is_next_epoch);
+int dtls1_process_buffered_records(SSL *s);
+int dtls1_retrieve_buffered_record(SSL *s, record_pqueue *queue);
+int dtls1_buffer_record(SSL *s, record_pqueue *q, unsigned char *priority);
 void ssl3_record_sequence_update(unsigned char *seq);
 
+/* Functions provided by the DTLS1_BITMAP component */
+
+int dtls1_record_replay_check(SSL *s, DTLS1_BITMAP *bitmap);
+void dtls1_record_bitmap_update(SSL *s, DTLS1_BITMAP *bitmap);
 
 /* Macros/functions provided by the SSL3_BUFFER component */
 
@@ -101,3 +110,5 @@ __owur int ssl3_cbc_remove_padding(SSL3_RECORD *rec,
 __owur int tls1_cbc_remove_padding(const SSL *s,
                                    SSL3_RECORD *rec,
                                    unsigned block_size, unsigned mac_size);
+int dtls1_process_record(SSL *s, DTLS1_BITMAP *bitmap);
+__owur int dtls1_get_record(SSL *s);

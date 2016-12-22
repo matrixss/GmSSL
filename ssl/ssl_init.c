@@ -72,13 +72,6 @@ DEFINE_RUN_ONCE_STATIC(ossl_init_ssl_base)
     EVP_add_cipher(EVP_seed_cbc());
 #endif
 
-#ifndef NO_GMSSL
-    EVP_add_cipher(EVP_sms4_cbc());
-    EVP_add_cipher(EVP_sms4_gcm());
-    EVP_add_cipher(EVP_sms4_ccm());
-    EVP_add_digest(EVP_sm3());
-#endif
-
 #ifndef OPENSSL_NO_MD5
     EVP_add_digest(EVP_md5());
     EVP_add_digest_alias(SN_md5, "ssl3-md5");

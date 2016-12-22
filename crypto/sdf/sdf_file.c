@@ -50,22 +50,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <openssl/evp.h>
-#include <openssl/skf.h>
-#include <openssl/sdf.h>
-#include <openssl/rand.h>
-#include <openssl/gmapi.h>
-#include "gmapi_lcl.h"
+#include <openssl/gmsdf.h>
 
-/*
- * as the SDF API is the wrapping of EVP API and ENGINE API, the current ENGINE
- * API does not support save/load any data, but only public key, private key
- * and certificates, so the file operations of SDF API can not be supported.
- * But if the future updates considering PKCS #11 or OpenSC, then the support
- * of file/data in token will be possible.
- */
-
-int gmssl_SDF_CreateFile(
+int SDF_CreateFile(
 	void *hSessionHandle,
 	unsigned char *pucFileName,
 	unsigned int uiNameLen,
@@ -74,8 +61,7 @@ int gmssl_SDF_CreateFile(
 	return SDR_NOTSUPPORT;
 }
 
-/* implement this function only for testing */
-int gmssl_SDF_ReadFile(
+int SDF_ReadFile(
 	void *hSessionHandle,
 	unsigned char *pucFileName,
 	unsigned int uiNameLen,
@@ -83,12 +69,10 @@ int gmssl_SDF_ReadFile(
 	unsigned int *puiReadLength,
 	unsigned char *pucBuffer)
 {
-	if (!pucBuffer) {
-	}
-	return 0;
+	return SDR_NOTSUPPORT;
 }
 
-int gmssl_SDF_WriteFile(
+int SDF_WriteFile(
 	void *hSessionHandle,
 	unsigned char *pucFileName,
 	unsigned int uiNameLen,
@@ -99,11 +83,10 @@ int gmssl_SDF_WriteFile(
 	return SDR_NOTSUPPORT;
 }
 
-int gmssl_SDF_DeleteFile(
+int SDF_DeleteFile(
 	void *hSessionHandle,
 	unsigned char *pucFileName,
 	unsigned int uiNameLen)
 {
 	return SDR_NOTSUPPORT;
 }
-

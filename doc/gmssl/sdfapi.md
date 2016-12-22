@@ -1,9 +1,12 @@
 # SDF API
 
+The SDF API (GM/T 0018-2012) is the cryptographic API of C language for PCI-E cryptographic cards. Here we introduce the specific design of the SDF API and our implementation choices.
 
-The SDF API (GM/T 0018-2012) is the cryptographic API of C language for PCI-E
-cryptographic cards. Here we introduce the specific design of the SDF API and
-our implementation choices.
+## Key Container
+
+
+
+
 
 ## Device
 
@@ -76,4 +79,35 @@ The SDF device can provide some data storage.
 	SDF_DeleteFlile
 
 The files are not protected by access control.
+
+
+
+
+
+
+
+Files in SDF API can be seen as small flash memory buffers inside the crypto device referenced by a string. This subset of the SDF APIs lacks some functionalities such as access control and metadata management. So the storage should not be seen as secure storage, and data read from a file should be checked before used.
+
+as the SDF API is the wrapping of EVP API and ENGINE API, the current ENGINE API does not support save/load any data, but only public key, private key and certificates, so the file operations of SDF API can not be supported. But if the future updates considering PKCS #11 or OpenSC, then the support of file/data in token will be possible.
+
+
+MAC
+
+The scheme is a block cipher based MAC, default is CBC-MAC, might be
+changed to more secure CMAC. These two MAC schemes do not support IV,
+so the current implementation will omit the arugemnt `pucIV`. Be sure to
+assign `NULL` to `pucIV`, if anything changed in the future, the API will
+return errors to indicate the miss of `pucIV`.
+
+
+
+## References
+
+1. GM/T 0018
+
+
+
+
+
+
 

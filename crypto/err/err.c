@@ -64,6 +64,7 @@ static ERR_STRING_DATA ERR_str_libraries[] = {
     {ERR_PACK(ERR_LIB_GMAPI, 0, 0), "GMAPI routines"},
     {ERR_PACK(ERR_LIB_PAIRING, 0, 0), "PAIRING routines"},
     {ERR_PACK(ERR_LIB_PAILLIER, 0, 0), "PAILLIER routines"},
+    {ERR_PACK(ERR_LIB_SDF, 0, 0), "SDF routines"},
 #endif
     {0, NULL},
 };

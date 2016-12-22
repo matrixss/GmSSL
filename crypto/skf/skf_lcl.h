@@ -78,8 +78,6 @@ typedef struct {
 	const EVP_CIPHER *cipher;
 } SAF_KEY_HANDLE;
 
-
-
 typedef struct {
 	int err_no;
 	char *err_str;

@@ -99,6 +99,7 @@ typedef struct err_state_st {
 # define ERR_LIB_GMAPI           55
 # define ERR_LIB_PAIRING         56
 # define ERR_LIB_PAILLIER        57
+# define ERR_LIB_SDF             80
 # endif
 
 # define ERR_LIB_USER            128
@@ -145,6 +146,7 @@ typedef struct err_state_st {
 # define GMAPIerr(f,r) ERR_PUT_error(ERR_LIB_GMAPI,(f),(r),OPENSSL_FILE,OPENSSL_LINE)
 # define PAIRINGerr(f,r) ERR_PUT_error(ERR_LIB_PAIRING,(f),(r),OPENSSL_FILE,OPENSSL_LINE)
 # define PAILLIERerr(f,r) ERR_PUT_error(ERR_LIB_PAILLIER,(f),(r),OPENSSL_FILE,OPENSSL_LINE)
+# define SDFerr(f,r) ERR_PUT_error(ERR_LIB_SDF,(f),(r),OPENSSL_FILE,OPENSSL_LINE)
 # endif
 
 # define ERR_PACK(l,f,r) ( \
@@ -198,6 +200,7 @@ typedef struct err_state_st {
 # define ERR_R_GMAPI_LIB ERR_LIB_GMAPI/* 55 */
 # define ERR_R_PAIRING_LIB ERR_LIB_PAIRING/* 56 */
 # define ERR_R_PAILLIER_LIB ERR_LIB_PAILLIER/* 57 */
+# define ERR_R_SDF_LIB   ERR_LIB_SDF /* 80 */
 # endif
 
 # define ERR_R_NESTED_ASN1_ERROR                 58

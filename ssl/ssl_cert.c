@@ -96,6 +96,14 @@ CERT *ssl_cert_dup(CERT *cert)
         OPENSSL_free(ret);
         return NULL;
     }
+#ifndef OPENSSL_NO_DH
+    if (cert->dh_tmp != NULL) {
+        ret->dh_tmp = cert->dh_tmp;
+        EVP_PKEY_up_ref(ret->dh_tmp);
+    }
+    ret->dh_tmp_cb = cert->dh_tmp_cb;
+    ret->dh_tmp_auto = cert->dh_tmp_auto;
+#endif
 
     for (i = 0; i < SSL_PKEY_NUM; i++) {
         CERT_PKEY *cpk = cert->pkeys + i;
@@ -184,6 +192,13 @@ CERT *ssl_cert_dup(CERT *cert)
         goto err;
     if (!custom_exts_copy(&ret->srv_ext, &cert->srv_ext))
         goto err;
+#ifndef OPENSSL_NO_PSK
+    if (cert->psk_identity_hint) {
+        ret->psk_identity_hint = OPENSSL_strdup(cert->psk_identity_hint);
+        if (ret->psk_identity_hint == NULL)
+            goto err;
+    }
+#endif
     return ret;
 
  err:
@@ -226,6 +241,9 @@ void ssl_cert_free(CERT *c)
         return;
     REF_ASSERT_ISNT(i < 0);
 
+#ifndef OPENSSL_NO_DH
+    EVP_PKEY_free(c->dh_tmp);
+#endif
 
     ssl_cert_clear_certs(c);
     OPENSSL_free(c->conf_sigalgs);
@@ -236,6 +254,9 @@ void ssl_cert_free(CERT *c)
     X509_STORE_free(c->chain_store);
     custom_exts_free(&c->cli_ext);
     custom_exts_free(&c->srv_ext);
+#ifndef OPENSSL_NO_PSK
+    OPENSSL_free(c->psk_identity_hint);
+#endif
     CRYPTO_THREAD_lock_free(c->lock);
     OPENSSL_free(c);
 }
@@ -804,6 +825,12 @@ int ssl_add_cert_chain(SSL *s, CERT_PKEY *cpk, unsigned long *l)
         chain = X509_STORE_CTX_get0_chain(xs_ctx);
         i = ssl_security_cert_chain(s, chain, NULL, 0);
         if (i != 1) {
+#if 0
+            /* Dummy error calls so mkerr generates them */
+            SSLerr(SSL_F_SSL_ADD_CERT_CHAIN, SSL_R_EE_KEY_TOO_SMALL);
+            SSLerr(SSL_F_SSL_ADD_CERT_CHAIN, SSL_R_CA_KEY_TOO_SMALL);
+            SSLerr(SSL_F_SSL_ADD_CERT_CHAIN, SSL_R_CA_MD_TOO_WEAK);
+#endif
             X509_STORE_CTX_free(xs_ctx);
             SSLerr(SSL_F_SSL_ADD_CERT_CHAIN, i);
             return 0;
@@ -835,7 +862,6 @@ int ssl_add_cert_chain(SSL *s, CERT_PKEY *cpk, unsigned long *l)
     return 1;
 }
 
-//FIXME
 /* Build a certificate chain for current certificate */
 int ssl_build_cert_chain(SSL *s, SSL_CTX *ctx, int flags)
 {

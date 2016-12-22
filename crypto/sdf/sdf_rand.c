@@ -1,4 +1,3 @@
-/* crypto/gmapi/sdf_lib.c */
 /* ====================================================================
  * Copyright (c) 2016 The GmSSL Project.  All rights reserved.
  *
@@ -51,33 +50,44 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <openssl/err.h>
 #include <openssl/evp.h>
-#include <openssl/skf.h>
-#include <openssl/sdf.h>
 #include <openssl/rand.h>
-#include <openssl/gmapi.h>
-#include "gmapi_lcl.h"
+#include <openssl/e_os2.h>
+#include <openssl/gmsdf.h>
 #include "sdf_lcl.h"
 
-int gmssl_SDF_GenerateRandom(
+int SDF_GenerateRandom(
 	void *hSessionHandle,
 	unsigned int uiLength,
 	unsigned char *pucRandom)
 {
 	SDF_SESSION *session = (SDF_SESSION *)hSessionHandle;
 
-	if (!pucRandom) {
-		GMAPIerr(GMAPI_F_SDF_GENERATERANDOM,
+	if (!hSessionHandle || !pucRandom) {
+		SDFerr(SDF_F_SDF_GENERATERANDOM,
 			ERR_R_PASSED_NULL_PARAMETER);
-		return -1;
+		return SDR_INARGERR;
 	}
 
-	if (!session || !session->engine) {
-		if (!RAND_bytes(pucRandom, uiLength)) {
-			GMAPIerr(GMAPI_F_SDF_GENERATERANDOM,
-				GMAPI_R_RANDOM_FAILURE);
-			return -1;
+	if (uiLength > INT_MAX) {
+		SDFerr(SDF_F_SDF_GENERATERANDOM, SDF_R_INVALID_LENGTH);
+		return SDR_INARGERR;
+	}
+
+#ifndef OPENSSL_NO_ENGINE
+	/* try to use the hardware random generator */
+	if (session->engine) {
+		if (!RAND_set_rand_engine(session->engine)) {
+			SDFerr(SDF_F_SDF_GENERATERANDOM, ERR_R_RAND_LIB);
+			return SDR_UNKNOWERR;
 		}
+	}
+#endif
+
+	if (!RAND_bytes(pucRandom, (int)uiLength)) {
+		SDFerr(SDF_F_SDF_GENERATERANDOM, SDF_R_RANDOM_FAILURE);
+		return SDR_RANDERR;
 	}
 
 	return SDR_OK;

@@ -45,6 +45,7 @@
 # include <openssl/gmapi.h>
 # include <openssl/pairing.h>
 # include <openssl/paillier.h>
+# include <openssl/gmsdf.h>
 #endif
 
 int err_load_crypto_strings_int(void)
@@ -62,6 +63,7 @@ int err_load_crypto_strings_int(void)
         ERR_load_GMAPI_strings() == 0 ||
         ERR_load_PAIRING_strings() == 0 ||
         ERR_load_PAILLIER_strings() == 0 ||
+        ERR_load_SDF_strings() == 0 ||
 # endif
 # ifndef OPENSSL_NO_RSA
         ERR_load_RSA_strings() == 0 ||

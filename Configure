@@ -254,9 +254,8 @@ $config{sdirs} = [
     "bn", "ec", "rsa", "dsa", "dh", "dso", "engine",
     "buffer", "bio", "stack", "lhash", "rand", "err",
     "evp", "asn1", "pem", "x509", "x509v3", "conf", "txt_db", "pkcs7", "pkcs12", "comp", "ocsp", "ui",
-    "cms", "ts", "srp", "cmac", "ct", "async", "kdf",
-    "sm2", "sm3", "sms4", "sm9", "zuc", "cbcmac", "cpk", "paillier", "pairing", "gmapi"
-];
+    "cms", "ts", "srp", "cmac", "ct", "async", "kdf"
+    ];
 
 # Known TLS and DTLS protocols
 my @tls = qw(ssl3 tls1 tls1_1 tls1_2);

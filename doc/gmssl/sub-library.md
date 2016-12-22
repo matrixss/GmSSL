@@ -23,3 +23,27 @@ times in case new functions or error codes are added.
 You can see the `paillier` module as an example because it is a full-feature
 sub-library with all the above modifications.
 
+## Sub-libraries of GmSSL
+
+| SuB-LIBRARY | Description                     |
+| ----------- | ------------------------------- |
+| `cbcmac`    | CBC-MAC                         |
+| `cpk`       | CPK (Combined Public Key)       |
+| `gmapi`     | GM API                          |
+| `paillier`  | Paillier Cryptosystem           |
+| `pairing`   | Bilinear Pairing                |
+| `saf`       | SAF API                         |
+| `sdf`       | SDF API                         |
+| `skf`       | SKF API                         |
+| `sm3`       | SM3 Digest Algorithm            |
+| `sm9`       | SM9 Identity-based Cryptography |
+| `sms4`      | SMS4 Block Cipher               |
+| `sof`       | SOF API                         |
+| `zuc`       | ZUC Stream Cipher               |
+|             |                                 |
+|             |                                 |
+|             |                                 |
+|             |                                 |
+|             |                                 |
+|             |                                 |
+

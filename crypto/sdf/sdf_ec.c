@@ -57,8 +57,50 @@
 #include "gmapi_lcl.h"
 #include "sdf_lcl.h"
 
+/*
+ * For all the ECC signing/verification, the to be signed data `pucData`
+ * should be the digest of the message, instead of the original message. If
+ * the application requires a GM standard signature with the hashed identity
+ * `Z`, then `SDF_HashInit` must be called with the `pucPublicKey` and
+ * `pucID` provided.
+ */
 
-int gmssl_SDF_GenerateKeyPair_ECC(
+/*
+ * some of these functions require an `uiAlgID` to specify the algorithm.
+ * Currently only `SGD_SM2_1` and `SGD_SM2_3` should be used. Maybe for some
+ * implementations might also support international algorithms such as ECDSA
+ * and ECIES.
+ */
+/*
+ * there are limits on the max size of input plaintext, for SM2 encryptions,
+ * the length will be equal to the `ECCref_MAX_CIPHER_LEN`
+ */
+/*
+ * Symmetric Encryption:
+ *	`SDF_Encrypt`
+ *	`SDF_Decrypt`
+ *
+ * we will not provide two-step operations for SDF API which means the
+ * caller can not assign the `pucEnData` to be NULL hoping that the API will
+ * return the proper out length through `*puiEncDataLength`. The reason is
+ * that the maximum output length can be easily estimated in almost all the
+ * APIs of SDF. So when `pucEncData` is NULL or `*puiEncDataLength` is not
+ * large enough, the API will just return with an error.
+ *
+ * The implementation will not carefully to estimate the output length, so
+ * always prepare the max output buffer. For exmaple, prepare at least two
+ * extra blocks for symmetric encryption, prepare max digest length of known
+ * hash functions as the MAC buffer size.
+ *
+ * Note: the GM/T 0018-2012 standard requires the implementation MUST NOT do
+ * any padding operatons, and the input data length should be multiple block
+ * length. Thus these two functions can be used for modes such as CBC, the
+ * caller can use a function more than once and do the padding himself.
+ */
+
+
+
+int SDF_GenerateKeyPair_ECC(
 	void *hSessionHandle,
 	unsigned int uiAlgID,
 	unsigned int  uiKeyBits,
@@ -70,37 +112,37 @@ int gmssl_SDF_GenerateKeyPair_ECC(
 
 	/* check arguments */
 	if (!hSessionHandle || !pucPublicKey || !pucPrivateKey) {
-		GMAPIerr(GMAPI_F_SDF_GENERATEKEYPAIR_ECC,
+		SDFerr(SDF_F_SDF_GENERATEKEYPAIR_ECC,
 			ERR_R_PASSED_NULL_PARAMETER);
 		return SDR_UNKNOWERR;
 	}
 	if (uiAlgID != SGD_SM2 && uiAlgID != SGD_SM2_1 &&
 		uiAlgID != SGD_SM2_2 && uiAlgID != SGD_SM2_3) {
-		GMAPIerr(GMAPI_F_SDF_GENERATEKEYPAIR_ECC,
-			GMAPI_R_INVALID_ALGOR);
+		SDFerr(SDF_F_SDF_GENERATEKEYPAIR_ECC,
+			SDF_R_INVALID_ALGOR);
 		return SDR_UNKNOWERR;
 	}
 	if (uiKeyBits != 256) {
-		GMAPIerr(GMAPI_F_SDF_GENERATEKEYPAIR_ECC,
-			GMAPI_R_INVALID_KEY_LENGTH);
+		SDFerr(SDF_F_SDF_GENERATEKEYPAIR_ECC,
+			SDF_R_INVALID_KEY_LENGTH);
 		return SDR_UNKNOWERR;
 	}
 
 	/* generate */
 	if(!(ec_key = EC_KEY_new_by_curve_name(NID_sm2p256v1))) {
-		GMAPIerr(GMAPI_F_SDF_GENERATEKEYPAIR_ECC, ERR_R_EC_LIB);
+		SDFerr(SDF_F_SDF_GENERATEKEYPAIR_ECC, ERR_R_EC_LIB);
 		goto end;
 	}
 
 	/* convert */
 	if (!EC_KEY_get_ECCrefPublicKey(ec_key, pucPublicKey)) {
-		GMAPIerr(GMAPI_F_SDF_GENERATEKEYPAIR_ECC,
-			GMAPI_R_GET_PUBLIC_KEY_FAILED);
+		SDFerr(SDF_F_SDF_GENERATEKEYPAIR_ECC,
+			SDF_R_GET_PUBLIC_KEY_FAILED);
 		goto end;
 	}
 	if (!EC_KEY_get_ECCrefPrivateKey(ec_key, pucPrivateKey)) {
-		GMAPIerr(GMAPI_F_SDF_GENERATEKEYPAIR_ECC,
-			GMAPI_R_GET_PRIVATE_KEY_FAILED);
+		SDFerr(SDF_F_SDF_GENERATEKEYPAIR_ECC,
+			SDF_R_GET_PRIVATE_KEY_FAILED);
 		goto end;
 	}
 
@@ -110,7 +152,7 @@ end:
 	return ret;
 }
 
-int gmssl_SDF_ExportSignPublicKey_ECC(
+int SDF_ExportSignPublicKey_ECC(
 	void *hSessionHandle,
 	unsigned int uiKeyIndex,
 	ECCrefPublicKey *pucPublicKey)
@@ -121,7 +163,7 @@ int gmssl_SDF_ExportSignPublicKey_ECC(
 
 	/* check arguments */
 	if (!hSessionHandle || !pucPublicKey) {
-		GMAPIerr(GMAPI_F_SDF_EXPORTSIGNPUBLICKEY_ECC,
+		SDFerr(SDF_F_SDF_EXPORTSIGNPUBLICKEY_ECC,
 			ERR_R_PASSED_NULL_PARAMETER);
 		return SDR_UNKNOWERR;
 	}
@@ -129,7 +171,7 @@ int gmssl_SDF_ExportSignPublicKey_ECC(
 	/* load key */
 	if (!(pkey = sdf_load_ec_public_key(hSessionHandle,
 		uiKeyIndex, uiKeyUsage))) {
-		GMAPIerr(GMAPI_F_SDF_EXPORTSIGNPUBLICKEY_ECC,
+		SDFerr(SDF_F_SDF_EXPORTSIGNPUBLICKEY_ECC,
 			ERR_R_GMAPI_LIB);
 		goto end;
 	}
@@ -137,7 +179,7 @@ int gmssl_SDF_ExportSignPublicKey_ECC(
 	/* set return value */
 	if (!EC_KEY_get_ECCrefPublicKey(EVP_PKEY_get0_EC_KEY(pkey),
 		pucPublicKey)) {
-		GMAPIerr(GMAPI_F_SDF_EXPORTSIGNPUBLICKEY_ECC,
+		SDFerr(SDF_F_SDF_EXPORTSIGNPUBLICKEY_ECC,
 			ERR_R_GMAPI_LIB);
 		goto end;
 	}
@@ -148,7 +190,7 @@ end:
 	return ret;
 }
 
-int gmssl_SDF_ExportEncPublicKey_ECC(
+int SDF_ExportEncPublicKey_ECC(
 	void *hSessionHandle,
 	unsigned int uiKeyIndex,
 	ECCrefPublicKey *pucPublicKey)
@@ -159,7 +201,7 @@ int gmssl_SDF_ExportEncPublicKey_ECC(
 
 	/* check arguments */
 	if (!hSessionHandle || !pucPublicKey) {
-		GMAPIerr(GMAPI_F_SDF_EXPORTENCPUBLICKEY_ECC,
+		SDFerr(SDF_F_SDF_EXPORTENCPUBLICKEY_ECC,
 			ERR_R_PASSED_NULL_PARAMETER);
 		return SDR_UNKNOWERR;
 	}
@@ -167,7 +209,7 @@ int gmssl_SDF_ExportEncPublicKey_ECC(
 	/* load key */
 	if (!(pkey = sdf_load_ec_public_key(hSessionHandle,
 		uiKeyIndex, uiKeyUsage))) {
-		GMAPIerr(GMAPI_F_SDF_EXPORTENCPUBLICKEY_ECC,
+		SDFerr(SDF_F_SDF_EXPORTENCPUBLICKEY_ECC,
 			ERR_R_GMAPI_LIB);
 		goto end;
 	}
@@ -175,7 +217,7 @@ int gmssl_SDF_ExportEncPublicKey_ECC(
 	/* set return value */
 	if (!EC_KEY_get_ECCrefPublicKey(EVP_PKEY_get0_EC_KEY(pkey),
 		pucPublicKey)) {
-		GMAPIerr(GMAPI_F_SDF_EXPORTENCPUBLICKEY_ECC,
+		SDFerr(SDF_F_SDF_EXPORTENCPUBLICKEY_ECC,
 			ERR_R_GMAPI_LIB);
 		goto end;
 	}
@@ -186,7 +228,7 @@ end:
 	return ret;
 }
 
-int gmssl_SDF_GenerateAgreementDataWithECC(
+int SDF_GenerateAgreementDataWithECC(
 	void *hSessionHandle,
 	unsigned int uiISKIndex,
 	unsigned int uiKeyBits,
@@ -199,7 +241,7 @@ int gmssl_SDF_GenerateAgreementDataWithECC(
 	return 0;
 }
 
-int gmssl_SDF_GenerateKeyWithECC(
+int SDF_GenerateKeyWithECC(
 	void *hSessionHandle,
 	unsigned char *pucResponseID,
 	unsigned int uiResponseIDLength,
@@ -211,7 +253,7 @@ int gmssl_SDF_GenerateKeyWithECC(
 	return 0;
 }
 
-int gmssl_SDF_GenerateAgreementDataAndKeyWithECC(
+int SDF_GenerateAgreementDataAndKeyWithECC(
 	void *hSessionHandle,
 	unsigned int uiISKIndex,
 	unsigned int uiKeyBits,
@@ -234,7 +276,7 @@ int gmssl_SDF_GenerateAgreementDataAndKeyWithECC(
  * and then use the SDF_GenerateKeyWithEPK_ECC to encrypt the key
  * the output key handle is only a pointer to the key buffer.
  */
-int gmssl_SDF_GenerateKeyWithIPK_ECC(
+int SDF_GenerateKeyWithIPK_ECC(
 	void *hSessionHandle,
 	unsigned int uiIPKIndex,
 	unsigned int uiKeyBits, /* output session key length */
@@ -247,27 +289,27 @@ int gmssl_SDF_GenerateKeyWithIPK_ECC(
 
 	/* check arguments */
 	if (!hSessionHandle || !pucKey || !phKeyHandle) {
-		GMAPIerr(GMAPI_F_SDF_GENERATEKEYWITHIPK_ECC,
+		SDFerr(SDF_F_SDF_GENERATEKEYWITHIPK_ECC,
 			ERR_R_PASSED_NULL_PARAMETER);
 		return SDR_UNKNOWERR;
 	}
 	if (uiKeyBits <= 0 || uiKeyBits > EVP_MAX_KEY_LENGTH * 8 ||
 		uiKeyBits % 8) {
-		GMAPIerr(GMAPI_F_SDF_GENERATEKEYWITHIPK_ECC,
-			GMAPI_R_INVALID_KEY_LENGTH);
+		SDFerr(SDF_F_SDF_GENERATEKEYWITHIPK_ECC,
+			SDF_R_INVALID_KEY_LENGTH);
 		return SDR_UNKNOWERR;
 	}
 
 	/* random key */
 	if (!(key = OPENSSL_zalloc(sizeof(*key)))) {
-		GMAPIerr(GMAPI_F_SDF_GENERATEKEYWITHIPK_ECC,
+		SDFerr(SDF_F_SDF_GENERATEKEYWITHIPK_ECC,
 			ERR_R_MALLOC_FAILURE);
 		goto end;
 	}
 	key->keylen = uiKeyBits/8;
 	if ((ret = SDF_GenerateRandom(hSessionHandle, key->keylen,
 		key->key)) != SDR_OK) {
-		GMAPIerr(GMAPI_F_SDF_GENERATEKEYWITHIPK_ECC,
+		SDFerr(SDF_F_SDF_GENERATEKEYWITHIPK_ECC,
 			ERR_R_GMAPI_LIB);
 		goto end;
 	}
@@ -280,7 +322,7 @@ int gmssl_SDF_GenerateKeyWithIPK_ECC(
 		key->key,
 		key->keylen,
 		pucKey)) != SDR_OK) {
-		GMAPIerr(GMAPI_F_SDF_GENERATEKEYWITHIPK_ECC,
+		SDFerr(SDF_F_SDF_GENERATEKEYWITHIPK_ECC,
 			ERR_R_GMAPI_LIB);
 		goto end;
 	}
@@ -295,7 +337,7 @@ end:
 	return ret;
 }
 
-int gmssl_SDF_GenerateKeyWithEPK_ECC(
+int SDF_GenerateKeyWithEPK_ECC(
 	void *hSessionHandle,
 	unsigned int uiKeyBits,
 	unsigned int uiAlgID, /* must be SGD_SM2_3 */
@@ -308,32 +350,32 @@ int gmssl_SDF_GenerateKeyWithEPK_ECC(
 
 	/* check arguments */
 	if (!hSessionHandle || !pucPublicKey || !pucKey || !phKeyHandle) {
-		GMAPIerr(GMAPI_F_SDF_GENERATEKEYWITHEPK_ECC,
+		SDFerr(SDF_F_SDF_GENERATEKEYWITHEPK_ECC,
 			ERR_R_PASSED_NULL_PARAMETER);
 		return SDR_UNKNOWERR;
 	}
 	if (uiKeyBits <= 0 || uiKeyBits >= EVP_MAX_KEY_LENGTH * 8 ||
 		uiKeyBits % 8) {
-		GMAPIerr(GMAPI_F_SDF_GENERATEKEYWITHEPK_ECC,
-			GMAPI_R_INVALID_KEY_LENGTH);
+		SDFerr(SDF_F_SDF_GENERATEKEYWITHEPK_ECC,
+			SDF_R_INVALID_KEY_LENGTH);
 		return SDR_UNKNOWERR;
 	}
 	if (uiAlgID != SGD_SM2_3) {
-		GMAPIerr(GMAPI_F_SDF_GENERATEKEYWITHEPK_ECC,
-			GMAPI_R_INVALID_ALGOR);
+		SDFerr(SDF_F_SDF_GENERATEKEYWITHEPK_ECC,
+			SDF_R_INVALID_ALGOR);
 		return SDR_UNKNOWERR;
 	}
 
 	/* random key */
 	if (!(key = OPENSSL_zalloc(sizeof(*key)))) {
-		GMAPIerr(GMAPI_F_SDF_GENERATEKEYWITHEPK_ECC,
+		SDFerr(SDF_F_SDF_GENERATEKEYWITHEPK_ECC,
 			ERR_R_MALLOC_FAILURE);
 		goto end;
 	}
 	key->keylen = uiKeyBits/8;
 	if ((ret = SDF_GenerateRandom(hSessionHandle, key->keylen,
 		key->key)) != SDR_OK) {
-		GMAPIerr(GMAPI_F_SDF_GENERATEKEYWITHEPK_ECC,
+		SDFerr(SDF_F_SDF_GENERATEKEYWITHEPK_ECC,
 			ERR_R_GMAPI_LIB);
 		goto end;
 	}
@@ -346,7 +388,7 @@ int gmssl_SDF_GenerateKeyWithEPK_ECC(
 		key->key,
 		key->keylen,
 		pucKey)) != SDR_OK) {
-		GMAPIerr(GMAPI_F_SDF_GENERATEKEYWITHEPK_ECC,
+		SDFerr(SDF_F_SDF_GENERATEKEYWITHEPK_ECC,
 			ERR_R_GMAPI_LIB);
 		goto end;
 	}
@@ -364,7 +406,7 @@ end:
 /* import session key
  * use the engine to decrypt the ECCipher
  */
-int gmssl_SDF_ImportKeyWithISK_ECC(
+int SDF_ImportKeyWithISK_ECC(
 	void *hSessionHandle,
 	unsigned int uiISKIndex,
 	ECCCipher *pucKey,
@@ -376,14 +418,14 @@ int gmssl_SDF_ImportKeyWithISK_ECC(
 
 	/* check arguments */
 	if (!hSessionHandle || !pucKey || !phKeyHandle) {
-		GMAPIerr(GMAPI_F_SDF_IMPORTKEYWITHISK_ECC,
+		SDFerr(SDF_F_SDF_IMPORTKEYWITHISK_ECC,
 			ERR_R_PASSED_NULL_PARAMETER);
 		return SDR_UNKNOWERR;
 	}
 
 	/* prepare key */
 	if (!(key = OPENSSL_zalloc(sizeof(*key)))) {
-		GMAPIerr(GMAPI_F_SDF_IMPORTKEYWITHISK_ECC,
+		SDFerr(SDF_F_SDF_IMPORTKEYWITHISK_ECC,
 			ERR_R_MALLOC_FAILURE);
 		goto end;
 	}
@@ -397,7 +439,7 @@ int gmssl_SDF_ImportKeyWithISK_ECC(
 		pucKey,
 		key->key,
 		&key->keylen)) != SDR_OK) {
-		GMAPIerr(GMAPI_F_SDF_IMPORTKEYWITHISK_ECC,
+		SDFerr(SDF_F_SDF_IMPORTKEYWITHISK_ECC,
 			ERR_R_GMAPI_LIB);
 		goto end;
 	}
@@ -412,7 +454,7 @@ end:
 	return ret;
 }
 
-int gmssl_SDF_ExchangeDigitEnvelopeBaseOnECC(
+int SDF_ExchangeDigitEnvelopeBaseOnECC(
 	void *hSessionHandle,
 	unsigned int uiKeyIndex,
 	unsigned int uiAlgID,
@@ -434,7 +476,7 @@ int gmssl_SDF_ExchangeDigitEnvelopeBaseOnECC(
  * directly.
  */
 
-int gmssl_SDF_ExternalSign_ECC(
+int SDF_ExternalSign_ECC(
 	void *hSessionHandle, /* no use so not checked */
 	unsigned int uiAlgID, /* must be SGD_SM2_1 */
 	ECCrefPrivateKey *pucPrivateKey,
@@ -448,36 +490,36 @@ int gmssl_SDF_ExternalSign_ECC(
 
 	/* check arguments */
 	if (!hSessionHandle || !pucData || !pucSignature) {
-		GMAPIerr(GMAPI_F_SDF_EXTERNALSIGN_ECC,
+		SDFerr(SDF_F_SDF_EXTERNALSIGN_ECC,
 			ERR_R_PASSED_NULL_PARAMETER);
 		return 0;
 	}
 	if (uiAlgID != SGD_SM2_1) {
-		GMAPIerr(GMAPI_F_SDF_EXTERNALSIGN_ECC,
-			GMAPI_R_INVALID_ALGOR);
+		SDFerr(SDF_F_SDF_EXTERNALSIGN_ECC,
+			SDF_R_INVALID_ALGOR);
 		return 0;
 	}
 	if (uiDataLength > INT_MAX) {
-		GMAPIerr(GMAPI_F_SDF_EXTERNALSIGN_ECC,
-			GMAPI_R_INVALID_INPUT_LENGTH);
+		SDFerr(SDF_F_SDF_EXTERNALSIGN_ECC,
+			SDF_R_INVALID_INPUT_LENGTH);
 		return 0;
 	}
 
 	/* load ec private key */
 	if (!(ec_key = EC_KEY_new_from_ECCrefPrivateKey(pucPrivateKey))) {
-		GMAPIerr(GMAPI_F_SDF_EXTERNALSIGN_ECC,
+		SDFerr(SDF_F_SDF_EXTERNALSIGN_ECC,
 			ERR_R_GMAPI_LIB);
 		goto end;
 	}
 	if (!(sig = SM2_do_sign(pucData, uiDataLength, ec_key))) {
-		GMAPIerr(GMAPI_F_SDF_EXTERNALSIGN_ECC,
+		SDFerr(SDF_F_SDF_EXTERNALSIGN_ECC,
 			ERR_R_EC_LIB);
 		goto end;
 	}
 
 	/* set return value */
 	if (!ECDSA_SIG_get_ECCSignature(sig, pucSignature)) {
-		GMAPIerr(GMAPI_F_SDF_EXTERNALSIGN_ECC,
+		SDFerr(SDF_F_SDF_EXTERNALSIGN_ECC,
 			ERR_R_GMAPI_LIB);
 		goto end;
 	}
@@ -489,7 +531,7 @@ end:
 	return ret;
 }
 
-int gmssl_SDF_ExternalVerify_ECC(
+int SDF_ExternalVerify_ECC(
 	void *hSessionHandle,
 	unsigned int uiAlgID,
 	ECCrefPublicKey *pucPublicKey,
@@ -504,33 +546,33 @@ int gmssl_SDF_ExternalVerify_ECC(
 	/* check arguments */
 	if (!hSessionHandle || !pucPublicKey || !pucDataInput ||
 		!pucSignature) {
-		GMAPIerr(GMAPI_F_SDF_EXTERNALVERIFY_ECC,
+		SDFerr(SDF_F_SDF_EXTERNALVERIFY_ECC,
 			ERR_R_PASSED_NULL_PARAMETER);
 		return SDR_UNKNOWERR;
 	}
 	if (uiAlgID != SGD_SM2_1) {
-		GMAPIerr(GMAPI_F_SDF_EXTERNALVERIFY_ECC,
-			GMAPI_R_INVALID_ALGOR);
+		SDFerr(SDF_F_SDF_EXTERNALVERIFY_ECC,
+			SDF_R_INVALID_ALGOR);
 		return SDR_UNKNOWERR;
 	}
 	if (uiInputLength != SM3_DIGEST_LENGTH) {
-		GMAPIerr(GMAPI_F_SDF_EXTERNALVERIFY_ECC,
-			GMAPI_R_INVALID_INPUT_LENGTH);
+		SDFerr(SDF_F_SDF_EXTERNALVERIFY_ECC,
+			SDF_R_INVALID_INPUT_LENGTH);
 		return SDR_UNKNOWERR;
 	}
 
 	/* parse arguments */
 	if (!(ec_key = EC_KEY_new_from_ECCrefPublicKey(pucPublicKey))) {
-		GMAPIerr(GMAPI_F_SDF_EXTERNALVERIFY_ECC,
-			GMAPI_R_INVALID_EC_PUBLIC_KEY);
+		SDFerr(SDF_F_SDF_EXTERNALVERIFY_ECC,
+			SDF_R_INVALID_EC_PUBLIC_KEY);
 		goto end;
 	}
 	if (!(sig = SM2_do_sign(pucDataInput, uiInputLength, ec_key))) {
-		GMAPIerr(GMAPI_F_SDF_EXTERNALVERIFY_ECC, ERR_R_EC_LIB);
+		SDFerr(SDF_F_SDF_EXTERNALVERIFY_ECC, ERR_R_EC_LIB);
 		goto end;
 	}
 	if (!ECDSA_SIG_get_ECCSignature(sig, pucSignature)) {
-		GMAPIerr(GMAPI_F_SDF_EXTERNALVERIFY_ECC, ERR_R_GMAPI_LIB);
+		SDFerr(SDF_F_SDF_EXTERNALVERIFY_ECC, ERR_R_GMAPI_LIB);
 		goto end;
 	}
 
@@ -543,7 +585,7 @@ end:
 	return ret;
 }
 
-int gmssl_SDF_ExternalEncrypt_ECC(
+int SDF_ExternalEncrypt_ECC(
 	void *hSessionHandle,
 	unsigned int uiAlgID, /* SGD_SM2_3 */
 	ECCrefPublicKey *pucPublicKey,
@@ -558,24 +600,24 @@ int gmssl_SDF_ExternalEncrypt_ECC(
 
 	/* check arguments */
 	if (!hSessionHandle || !pucPublicKey || !pucData || !pucEncData) {
-		GMAPIerr(GMAPI_F_SDF_EXTERNALENCRYPT_ECC,
+		SDFerr(SDF_F_SDF_EXTERNALENCRYPT_ECC,
 			ERR_R_PASSED_NULL_PARAMETER);
 		return 0;
 	}
 	if (uiAlgID != SGD_SM2_3) {
-		GMAPIerr(GMAPI_F_SDF_EXTERNALENCRYPT_ECC,
-			GMAPI_R_INVALID_ALGOR);
+		SDFerr(SDF_F_SDF_EXTERNALENCRYPT_ECC,
+			SDF_R_INVALID_ALGOR);
 		return 0;
 	}
 	if (uiDataLength > ECCref_MAX_CIPHER_LEN) {
-		GMAPIerr(GMAPI_F_SDF_EXTERNALENCRYPT_ECC,
-			GMAPI_R_INVALID_INPUT_LENGTH);
+		SDFerr(SDF_F_SDF_EXTERNALENCRYPT_ECC,
+			SDF_R_INVALID_INPUT_LENGTH);
 		return 0;
 	}
 
 	/* parse public key */
 	if (!(ec_key = EC_KEY_new_from_ECCrefPublicKey(pucPublicKey))) {
-		GMAPIerr(GMAPI_F_SDF_EXTERNALENCRYPT_ECC, ERR_R_GMAPI_LIB);
+		SDFerr(SDF_F_SDF_EXTERNALENCRYPT_ECC, ERR_R_GMAPI_LIB);
 		goto end;
 	}
 
@@ -583,12 +625,12 @@ int gmssl_SDF_ExternalEncrypt_ECC(
 	(void)SM2_ENC_PARAMS_init_with_recommended(&params);
 	if (!(cv = SM2_do_encrypt(&params, pucData, (size_t)uiDataLength,
 		ec_key))) {
-		GMAPIerr(GMAPI_F_SDF_EXTERNALENCRYPT_ECC, ERR_R_EC_LIB);
+		SDFerr(SDF_F_SDF_EXTERNALENCRYPT_ECC, ERR_R_EC_LIB);
 		goto end;
 	}
 	/* encode ciphertext */
 	if (!SM2_CIPHERTEXT_VALUE_get_ECCCipher(cv, pucEncData)) {
-		GMAPIerr(GMAPI_F_SDF_EXTERNALENCRYPT_ECC, ERR_R_EC_LIB);
+		SDFerr(SDF_F_SDF_EXTERNALENCRYPT_ECC, ERR_R_EC_LIB);
 		goto end;
 	}
 
@@ -600,7 +642,7 @@ end:
 	return ret;
 }
 
-int gmssl_SDF_ExternalDecrypt_ECC(
+int SDF_ExternalDecrypt_ECC(
 	void *hSessionHandle,
 	unsigned int uiAlgID,
 	ECCrefPrivateKey *pucPrivateKey,
@@ -617,25 +659,25 @@ int gmssl_SDF_ExternalDecrypt_ECC(
 	/* check arguments */
 	if (!hSessionHandle || !pucPrivateKey || !pucEncData ||
 		!pucData || !puiDataLength) {
-		GMAPIerr(GMAPI_F_SDF_EXTERNALDECRYPT_ECC,
+		SDFerr(SDF_F_SDF_EXTERNALDECRYPT_ECC,
 			ERR_R_PASSED_NULL_PARAMETER);
 		return SDR_UNKNOWERR;
 	}
 	if (*puiDataLength < ECCref_MAX_CIPHER_LEN) {
-		GMAPIerr(GMAPI_F_SDF_EXTERNALDECRYPT_ECC,
-			GMAPI_R_BUFFER_TOO_SMALL);
+		SDFerr(SDF_F_SDF_EXTERNALDECRYPT_ECC,
+			SDF_R_BUFFER_TOO_SMALL);
 		return SDR_UNKNOWERR;
 	}
 
 	/* parse arguments */
 	if (!(ec_key = EC_KEY_new_from_ECCrefPrivateKey(pucPrivateKey))) {
-		GMAPIerr(GMAPI_F_SDF_EXTERNALDECRYPT_ECC,
-			GMAPI_R_INVALID_EC_PRIVATE_KEY);
+		SDFerr(SDF_F_SDF_EXTERNALDECRYPT_ECC,
+			SDF_R_INVALID_EC_PRIVATE_KEY);
 		goto end;
 	}
 	if (!(cv = SM2_CIPHERTEXT_VALUE_new_from_ECCCipher(pucEncData))) {
-		GMAPIerr(GMAPI_F_SDF_EXTERNALDECRYPT_ECC,
-			GMAPI_R_INVALID_EC_CIPHERTEXT);
+		SDFerr(SDF_F_SDF_EXTERNALDECRYPT_ECC,
+			SDF_R_INVALID_EC_CIPHERTEXT);
 		goto end;
 	}
 
@@ -643,7 +685,7 @@ int gmssl_SDF_ExternalDecrypt_ECC(
 	(void)SM2_ENC_PARAMS_init_with_recommended(&params);
 	siz = (size_t)*puiDataLength;
 	if (!SM2_do_decrypt(&params, cv, pucData, &siz, ec_key)) {
-		GMAPIerr(GMAPI_F_SDF_EXTERNALDECRYPT_ECC, ERR_R_EC_LIB);
+		SDFerr(SDF_F_SDF_EXTERNALDECRYPT_ECC, ERR_R_EC_LIB);
 	}
 
 	/* set return value */
@@ -657,7 +699,7 @@ end:
 }
 
 /* internal private key operation will use ENGINE */
-int gmssl_SDF_InternalSign_ECC(
+int SDF_InternalSign_ECC(
 	void *hSessionHandle,
 	unsigned int uiISKIndex,
 	unsigned char *pucData,
@@ -673,21 +715,21 @@ int gmssl_SDF_InternalSign_ECC(
 
 	/* check arguments */
 	if (!hSessionHandle || !pucData || !pucSignature) {
-		GMAPIerr(GMAPI_F_SDF_INTERNALSIGN_ECC,
+		SDFerr(SDF_F_SDF_INTERNALSIGN_ECC,
 			ERR_R_PASSED_NULL_PARAMETER);
 		return SDR_UNKNOWERR;
 	}
 	if (uiDataLength > SM3_DIGEST_LENGTH) {
-		GMAPIerr(GMAPI_F_SDF_INTERNALSIGN_ECC,
-			GMAPI_R_INVALID_INPUT_LENGTH);
+		SDFerr(SDF_F_SDF_INTERNALSIGN_ECC,
+			SDF_R_INVALID_INPUT_LENGTH);
 		return SDR_UNKNOWERR;
 	}
 
 	/* parse arguments */
 	if (!(pkey = sdf_load_ec_private_key(hSessionHandle, uiISKIndex,
 		SGD_PK_SIGN))) {
-		GMAPIerr(GMAPI_F_SDF_INTERNALSIGN_ECC,
-			GMAPI_R_INVALID_KEY_HANDLE);
+		SDFerr(SDF_F_SDF_INTERNALSIGN_ECC,
+			SDF_R_INVALID_KEY_HANDLE);
 		goto end;
 	}
 
@@ -695,26 +737,26 @@ int gmssl_SDF_InternalSign_ECC(
 	 * use the EVP API instead of the native SM2 API to use ENGINE
 	 */
 	if (!(ctx = EVP_PKEY_CTX_new(pkey, session->engine))) {
-		GMAPIerr(GMAPI_F_SDF_INTERNALSIGN_ECC, ERR_R_EVP_LIB);
+		SDFerr(SDF_F_SDF_INTERNALSIGN_ECC, ERR_R_EVP_LIB);
 		goto end;
 	}
 	if (!EVP_PKEY_sign_init(ctx)) {
-		GMAPIerr(GMAPI_F_SDF_INTERNALSIGN_ECC, ERR_R_EVP_LIB);
+		SDFerr(SDF_F_SDF_INTERNALSIGN_ECC, ERR_R_EVP_LIB);
 		goto end;
 	}
 	if (!EVP_PKEY_CTX_set_ec_scheme(ctx, NID_sm_scheme)) {
-		GMAPIerr(GMAPI_F_SDF_INTERNALSIGN_ECC, ERR_R_EVP_LIB);
+		SDFerr(SDF_F_SDF_INTERNALSIGN_ECC, ERR_R_EVP_LIB);
 		goto end;
 	}
 	siz = sizeof(buf);
 	if (!EVP_PKEY_sign(ctx, buf, &siz, pucData, (size_t)uiDataLength)) {
-		GMAPIerr(GMAPI_F_SDF_INTERNALSIGN_ECC, ERR_R_EVP_LIB);
+		SDFerr(SDF_F_SDF_INTERNALSIGN_ECC, ERR_R_EVP_LIB);
 		goto end;
 	}
 
 	/* convert signature buf to ECCSignature */
 	if (!sdf_decode_ec_signature(pucSignature, buf, siz)) {
-		GMAPIerr(GMAPI_F_SDF_INTERNALSIGN_ECC, ERR_R_GMAPI_LIB);
+		SDFerr(SDF_F_SDF_INTERNALSIGN_ECC, ERR_R_GMAPI_LIB);
 		goto end;
 	}
 
@@ -727,7 +769,7 @@ end:
 	return ret;
 }
 
-int gmssl_SDF_InternalVerify_ECC(
+int SDF_InternalVerify_ECC(
 	void *hSessionHandle,
 	unsigned int uiIPKIndex,
 	unsigned char *pucData,
@@ -743,44 +785,44 @@ int gmssl_SDF_InternalVerify_ECC(
 
 	/* check arguments */
 	if (!hSessionHandle || !pucData || !pucSignature) {
-		GMAPIerr(GMAPI_F_SDF_INTERNALVERIFY_ECC,
+		SDFerr(SDF_F_SDF_INTERNALVERIFY_ECC,
 			ERR_R_PASSED_NULL_PARAMETER);
 		return SDR_UNKNOWERR;
 	}
 	if (uiDataLength != SM3_DIGEST_LENGTH) {
-		GMAPIerr(GMAPI_F_SDF_INTERNALVERIFY_ECC,
-			GMAPI_R_INVALID_INPUT_LENGTH);
+		SDFerr(SDF_F_SDF_INTERNALVERIFY_ECC,
+			SDF_R_INVALID_INPUT_LENGTH);
 		return SDR_UNKNOWERR;
 	}
 
 	/* parse arguments */
 	if (!(pkey = sdf_load_ec_public_key(hSessionHandle, uiIPKIndex,
 		SGD_PK_SIGN))) {
-		GMAPIerr(GMAPI_F_SDF_INTERNALVERIFY_ECC, ERR_R_GMAPI_LIB);
+		SDFerr(SDF_F_SDF_INTERNALVERIFY_ECC, ERR_R_GMAPI_LIB);
 		goto end;
 	}
 	siz = sizeof(buf);
 	if (!sdf_encode_ec_signature(pucSignature, buf, &siz)) {
-		GMAPIerr(GMAPI_F_SDF_INTERNALVERIFY_ECC, ERR_R_GMAPI_LIB);
+		SDFerr(SDF_F_SDF_INTERNALVERIFY_ECC, ERR_R_GMAPI_LIB);
 		goto end;
 	}
 
 	/* verify with EVP API and ENGINE */
 	if (!(ctx = EVP_PKEY_CTX_new(pkey, session->engine))) {
-		GMAPIerr(GMAPI_F_SDF_INTERNALVERIFY_ECC, ERR_R_EVP_LIB);
+		SDFerr(SDF_F_SDF_INTERNALVERIFY_ECC, ERR_R_EVP_LIB);
 		goto end;
 	}
 	if (!EVP_PKEY_verify_init(ctx)) {
-		GMAPIerr(GMAPI_F_SDF_INTERNALVERIFY_ECC, ERR_R_EVP_LIB);
+		SDFerr(SDF_F_SDF_INTERNALVERIFY_ECC, ERR_R_EVP_LIB);
 		goto end;
 	}
 	if (!EVP_PKEY_CTX_set_ec_scheme(ctx, NID_sm_scheme)) {
-		GMAPIerr(GMAPI_F_SDF_INTERNALVERIFY_ECC, ERR_R_EVP_LIB);
+		SDFerr(SDF_F_SDF_INTERNALVERIFY_ECC, ERR_R_EVP_LIB);
 		goto end;
 	}
 	if (1 != EVP_PKEY_verify(ctx, buf, siz, pucData,
 		(size_t)uiDataLength)) {
-		GMAPIerr(GMAPI_F_SDF_INTERNALVERIFY_ECC, ERR_R_EVP_LIB);
+		SDFerr(SDF_F_SDF_INTERNALVERIFY_ECC, ERR_R_EVP_LIB);
 		goto end;
 	}
 
@@ -792,7 +834,7 @@ end:
 	return ret;
 }
 
-int gmssl_SDF_InternalEncrypt_ECC(
+int SDF_InternalEncrypt_ECC(
 	void *hSessionHandle,
 	unsigned int uiIPKIndex,
 	unsigned int uiAlgID,
@@ -807,19 +849,19 @@ int gmssl_SDF_InternalEncrypt_ECC(
 
 	/* check arguments */
 	if (!hSessionHandle || !pucData || !pucEncData) {
-		GMAPIerr(GMAPI_F_SDF_INTERNALENCRYPT_ECC,
+		SDFerr(SDF_F_SDF_INTERNALENCRYPT_ECC,
 			ERR_R_PASSED_NULL_PARAMETER);
 		return 0;
 	}
 	if (uiDataLength > ECCref_MAX_LEN) {
-		GMAPIerr(GMAPI_F_SDF_INTERNALENCRYPT_ECC,
-			GMAPI_R_INVALID_INPUT_LENGTH);
+		SDFerr(SDF_F_SDF_INTERNALENCRYPT_ECC,
+			SDF_R_INVALID_INPUT_LENGTH);
 		return 0;
 	}
 
 	if (!(pkey = sdf_load_ec_public_key((SDF_SESSION *)hSessionHandle,
 		uiIPKIndex, uiAlgID))) {
-		GMAPIerr(GMAPI_F_SDF_INTERNALENCRYPT_ECC, ERR_R_GMAPI_LIB);
+		SDFerr(SDF_F_SDF_INTERNALENCRYPT_ECC, ERR_R_GMAPI_LIB);
 		goto end;
 	}
 
@@ -828,12 +870,12 @@ int gmssl_SDF_InternalEncrypt_ECC(
 	/* we need to use the EVP_PKEY interface to use ENGINE ?*/
 	if (!(cv = SM2_do_encrypt(&params, pucData, (size_t)uiDataLength,
 		EVP_PKEY_get0_EC_KEY(pkey)))) {
-		GMAPIerr(GMAPI_F_SDF_INTERNALENCRYPT_ECC, ERR_R_EC_LIB);
+		SDFerr(SDF_F_SDF_INTERNALENCRYPT_ECC, ERR_R_EC_LIB);
 		goto end;
 	}
 
 	if (!SM2_CIPHERTEXT_VALUE_get_ECCCipher(cv, pucEncData)) {
-		GMAPIerr(GMAPI_F_SDF_INTERNALENCRYPT_ECC, ERR_R_EC_LIB);
+		SDFerr(SDF_F_SDF_INTERNALENCRYPT_ECC, ERR_R_EC_LIB);
 		goto end;
 	}
 
@@ -845,7 +887,7 @@ end:
 	return ret;
 }
 
-int gmssl_SDF_InternalDecrypt_ECC(
+int SDF_InternalDecrypt_ECC(
 	void *hSessionHandle,
 	unsigned int uiISKIndex,
 	unsigned int uiAlgID,
@@ -859,18 +901,16 @@ int gmssl_SDF_InternalDecrypt_ECC(
 
 	/* check arguments */
 	if (!hSessionHandle || !pucEncData || !pucData || !puiDataLength) {
-		GMAPIerr(GMAPI_F_SDF_INTERNALDECRYPT_ECC,
+		SDFerr(SDF_F_SDF_INTERNALDECRYPT_ECC,
 			ERR_R_PASSED_NULL_PARAMETER);
 		return SDR_UNKNOWERR;
 	}
 
 	if (!(pkey = sdf_load_ec_private_key(hSessionHandle,
 		uiISKIndex, uiAlgID))) {
-		GMAPIerr(GMAPI_F_SDF_INTERNALDECRYPT_ECC, ERR_R_GMAPI_LIB);
+		SDFerr(SDF_F_SDF_INTERNALDECRYPT_ECC, ERR_R_GMAPI_LIB);
 		goto end;
 	}
-
-
 
 
 end:
