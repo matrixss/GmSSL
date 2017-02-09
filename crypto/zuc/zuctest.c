@@ -55,6 +55,11 @@
 #include <openssl/zuc.h>
 #include "../../e_os.h"
 
+#if (defined(_WIN32) || defined(_WIN64)) && !defined(__MINGW32__)
+  typedef unsigned char uint8_t;
+#else
+  #include <stdint.h>
+# endif
 
 typedef struct {
 	uint32_t *words;

@@ -354,6 +354,16 @@ $crypto.=" crypto/jpake/jpake.h";
 $crypto.=" crypto/modes/modes.h";
 $crypto.=" crypto/srp/srp.h";
 
+#gm
+$crypto.=" crypto/sm2/sm2.h";
+$crypto.=" crypto/sm3/sm3.h";
+$crypto.=" crypto/kdf/kdf.h";
+$crypto.=" crypto/cpk/cpk.h";
+$crypto.=" crypto/otp/otp.h";
+$crypto.=" crypto/ffx/ffx.h";
+$crypto.=" crypto/ecies/ecies.h";
+
+
 my $symhacks="crypto/symhacks.h";
 
 my @ssl_symbols = &do_defs("SSLEAY", $ssl, $symhacks);

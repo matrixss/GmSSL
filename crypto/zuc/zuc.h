@@ -52,8 +52,13 @@
 #ifndef HEADER_ZUC_H
 #define HEADER_ZUC_H
 
-#include <stdint.h>
 #include <stdlib.h>
+
+#if (defined(_WIN32) || defined(_WIN64)) && !defined(__MINGW32__)
+  typedef unsigned int uint32_t;
+#else
+  #include <stdint.h>
+# endif
 
 #ifdef __cplusplus
 extern "C" {

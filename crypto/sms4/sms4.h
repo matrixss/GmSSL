@@ -58,8 +58,14 @@
 #define SMS4_NUM_ROUNDS		32
 
 #include <sys/types.h>
-#include <stdint.h>
 #include <string.h>
+
+#if (defined(_WIN32) || defined(_WIN64)) && !defined(__MINGW32__)
+  typedef unsigned int uint32_t;
+  typedef unsigned char uint8_t;
+#else
+  #include <stdint.h>
+# endif
 
 
 #ifdef __cplusplus

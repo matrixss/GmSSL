@@ -56,14 +56,15 @@
 #define SM3_BLOCK_SIZE		64
 #define SM3_HMAC_SIZE		(SM3_DIGEST_LENGTH)
 
+#include <openssl/opensslconf.h>
 #include <sys/types.h>
-#include <stdint.h>
 #include <string.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
+#if (defined(_WIN32) || defined(_WIN64)) && !defined(__MINGW32__)
+  typedef unsigned int uint32_t;
+#else
+  #include <stdint.h>
+# endif
 
 typedef struct {
 	uint32_t digest[8];

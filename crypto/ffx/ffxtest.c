@@ -73,6 +73,7 @@ static int test()
 	unsigned char tweak[8] = { 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38 };
 	FFX_CTX ctx;
 	int r;
+	char *in = NULL;
 
 	ERR_load_crypto_strings();
 
@@ -82,7 +83,7 @@ static int test()
 		return -1;
 	}
 
-	char *in = "99999999999999999";
+	in = "99999999999999999";
 	r = FFX_encrypt(&ctx, in, strlen(in), tweak, sizeof(tweak), buf);
 
 	if (r < 0) {

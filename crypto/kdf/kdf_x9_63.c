@@ -51,8 +51,13 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <stdint.h>
 #include <openssl/kdf.h>
+
+#if (defined(_WIN32) || defined(_WIN64)) && !defined(__MINGW32__)
+  typedef unsigned int uint32_t;
+#else
+  #include <stdint.h>
+# endif
 
 #ifdef CPU_BIGENDIAN
 #define cpu_to_be16(v) (v)

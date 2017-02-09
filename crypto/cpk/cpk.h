@@ -89,7 +89,9 @@ int CPK_MAP_is_valid(const X509_ALGOR *algor);
 int CPK_MAP_num_factors(const X509_ALGOR *algor);
 int CPK_MAP_num_indexes(const X509_ALGOR *algor);
 int CPK_MAP_str2index(const X509_ALGOR *algor, const char *str, int *index);
+#if 0
 int CPK_MAP_print(BIO *out, X509_ALGOR *map, int indent, unsigned long flags);
+#endif
 
 CPK_MASTER_SECRET *CPK_MASTER_SECRET_create(const char *domain_id, EVP_PKEY *pkey, X509_ALGOR *map_algor);
 CPK_PUBLIC_PARAMS *CPK_MASTER_SECRET_extract_public_params(CPK_MASTER_SECRET *master);
@@ -102,7 +104,9 @@ int CPK_PUBLIC_PARAMS_compute_share_key(CPK_PUBLIC_PARAMS *params,
 	void *(*kdf)(const void *in, size_t inlen, void *out, size_t *outlen));
 
 char *CPK_MASTER_SECRET_get_name(CPK_MASTER_SECRET *master, char *buf, int size);
+#if 0
 char *CPK_PUBLIC_PARAMS_get_name(CPK_PUBLIC_PARAMS *params);
+#endif
 int CPK_MASTER_SECRET_digest(CPK_MASTER_SECRET *master, const EVP_MD *type, unsigned char *md, unsigned int *len);
 int CPK_PUBLIC_PARAMS_digest(CPK_PUBLIC_PARAMS *params, const EVP_MD *type, unsigned char *md, unsigned int *len);
 int CPK_MASTER_SECRET_print(BIO *out, CPK_MASTER_SECRET *master, int indent, unsigned long flags);

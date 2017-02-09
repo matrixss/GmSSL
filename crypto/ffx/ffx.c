@@ -62,10 +62,16 @@
 #include <ctype.h>
 #include <string.h>
 #include <assert.h>
-#include <inttypes.h>
 #include <openssl/err.h>
 #include <openssl/aes.h>
 #include <openssl/ffx.h>
+
+#if (defined(_WIN32) || defined(_WIN64)) && !defined(__MINGW32__)
+  typedef unsigned int uint32_t;
+  typedef unsigned __int64 uint64_t;
+#else
+  #include <stdint.h>
+# endif
 
 #define FFX_MIN_DIGITS	   		 6
 #define FFX_MAX_DIGITS	  		18

@@ -111,9 +111,13 @@ int SM2_CIPHERTEXT_VALUE_encode(const SM2_CIPHERTEXT_VALUE *cv,
 	unsigned char *buf, size_t *buflen);
 SM2_CIPHERTEXT_VALUE *SM2_CIPHERTEXT_VALUE_decode(const EC_GROUP *ec_group,
 	const SM2_ENC_PARAMS *params, const unsigned char *buf, size_t buflen);
+
+#if 0
 int i2d_SM2_CIPHERTEXT_VALUE(const SM2_CIPHERTEXT_VALUE *c, unsigned char **out);
 SM2_CIPHERTEXT_VALUE *d2i_SM2_CIPHERTEXT_VALUE(SM2_CIPHERTEXT_VALUE **c,
 	const unsigned char **in, long len);
+#endif
+
 int SM2_CIPHERTEXT_VALUE_print(BIO *out, const EC_GROUP *ec_group,
 	const SM2_CIPHERTEXT_VALUE *cv, int indent, unsigned long flags);
 

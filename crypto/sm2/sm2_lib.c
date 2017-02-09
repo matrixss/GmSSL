@@ -52,7 +52,6 @@
 
 #include <stdio.h>
 #include <assert.h>
-#include <stdint.h>
 #include <string.h>
 #include <openssl/bn.h>
 #include <openssl/ec.h>

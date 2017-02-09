@@ -1,7 +1,6 @@
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
 #include <string.h>
 #include <openssl/evp.h>
 #include <openssl/err.h>
@@ -9,6 +8,13 @@
 #include <openssl/cbcmac.h>
 #include "../modes/modes_lcl.h"
 #include <openssl/otp.h>
+
+#if (defined(_WIN32) || defined(_WIN64)) && !defined(__MINGW32__)
+  typedef unsigned int uint32_t;
+  typedef unsigned __int64 uint64_t;
+#else
+  #include <stdint.h>
+# endif
 
 static int pow_table[] = {
 	1,
